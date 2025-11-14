@@ -5,24 +5,19 @@ import { Upload, Video, Grid3x3, ArrowRight } from 'lucide-react';
 
 export default function LiveDashboard() {
   return (
-    <div className="min-h-screen">
-      {/* Hero Section */}
-      <div className="container mx-auto px-6 py-16">
-        <div className="text-center max-w-4xl mx-auto mb-16">
-          <h1 className="text-6xl font-bold text-[var(--text-primary)] mb-6">
-            NexaraVision
-          </h1>
-          <p className="text-2xl text-[var(--accent-blue)] mb-4">
-            AI-Powered Violence Detection
-          </p>
-          <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto">
-            Enterprise-grade violence detection for your existing CCTV infrastructure at 1/10th the cost.
-            90-95% accuracy with real-time alerts.
-          </p>
-        </div>
+    <div className="p-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">
+          Live Detection
+        </h1>
+        <p className="text-[var(--text-secondary)]">
+          Real-time violence detection tools for your CCTV system
+        </p>
+      </div>
 
-        {/* Feature Cards */}
-        <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+      {/* Feature Cards */}
+      <div className="grid md:grid-cols-3 gap-6 mb-8">
           {/* File Upload Card */}
           <Card className="border-[var(--border)] bg-[var(--card-bg)] hover:border-[var(--accent-blue)] transition-all">
             <CardHeader>
@@ -84,12 +79,12 @@ export default function LiveDashboard() {
           </Card>
         </div>
 
-        {/* Features Section */}
-        <div className="mt-24 max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold text-[var(--text-primary)] text-center mb-12">
-            Why NexaraVision?
-          </h2>
-          <div className="grid md:grid-cols-2 gap-8">
+      {/* Features Section */}
+      <div className="mt-12">
+        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-6">
+          Why NexaraVision?
+        </h2>
+        <div className="grid md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <h3 className="text-xl font-semibold text-[var(--accent-blue)]">
                 90-95% Accuracy
@@ -121,7 +116,6 @@ export default function LiveDashboard() {
               <p className="text-[var(--text-secondary)]">
                 Works with your existing CCTV infrastructure, no camera replacement needed
               </p>
-            </div>
           </div>
         </div>
       </div>
