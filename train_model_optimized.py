@@ -5,12 +5,23 @@ Uses pre-extracted frames for 10x faster training
 """
 
 import os
+import sys
+
+# ⚠️ CRITICAL: Set environment variables BEFORE importing TensorFlow
+# This forces single GPU mode and prevents OOM errors
+if 'CUDA_VISIBLE_DEVICES' not in os.environ:
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'  # Use only GPU 0
+    print("🎮 Forced CUDA_VISIBLE_DEVICES=0 (single GPU mode)")
+
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'  # Dynamic memory allocation
+os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'  # Better memory management
+
+# Now import TensorFlow (will only see GPU 0)
 import tensorflow as tf
 import numpy as np
 from pathlib import Path
 import json
 from datetime import datetime
-import sys
 
 from model_architecture import ViolenceDetectionModel
 
