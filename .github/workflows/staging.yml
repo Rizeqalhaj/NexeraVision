@@ -61,6 +61,11 @@ jobs:
             echo "STEP 1: Deploy Next.js Frontend"
             echo "=========================================="
 
+            # Stop old Docker container using port 8001 if exists
+            echo "🛑 Stopping old services on port 8001..."
+            docker stop violence-detection-staging 2>/dev/null || true
+            docker rm violence-detection-staging 2>/dev/null || true
+
             cd $DEPLOY_DIR/web_app_nextjs
 
             # Install dependencies
@@ -158,7 +163,7 @@ jobs:
               '' \
               '    # Next.js Frontend' \
               '    location / {' \
-              '        proxy_pass http://localhost:3004;' \
+              '        proxy_pass http://localhost:8001;' \
               '        proxy_http_version 1.1;' \
               '        proxy_set_header Upgrade $http_upgrade;' \
               '        proxy_set_header Connection "upgrade";' \
@@ -171,7 +176,7 @@ jobs:
               '' \
               '    # NestJS Backend API' \
               '    location /api {' \
-              '        proxy_pass http://localhost:3005;' \
+              '        proxy_pass http://localhost:8002;' \
               '        proxy_http_version 1.1;' \
               '        proxy_set_header Upgrade $http_upgrade;' \
               '        proxy_set_header Connection "upgrade";' \
@@ -216,17 +221,17 @@ jobs:
             echo "🔍 Testing Endpoints:"
 
             # Test frontend
-            if curl -f http://localhost:3004 > /dev/null 2>&1; then
-              echo "✓ Frontend (Next.js) - port 3004: OK"
+            if curl -f http://localhost:8001 > /dev/null 2>&1; then
+              echo "✓ Frontend (Next.js) - port 8001: OK"
             else
-              echo "✗ Frontend (Next.js) - port 3004: FAILED"
+              echo "✗ Frontend (Next.js) - port 8001: FAILED"
             fi
 
             # Test backend
-            if curl -f http://localhost:3005/health > /dev/null 2>&1; then
-              echo "✓ Backend (NestJS) - port 3005: OK"
+            if curl -f http://localhost:8002/health > /dev/null 2>&1; then
+              echo "✓ Backend (NestJS) - port 8002: OK"
             else
-              echo "✗ Backend (NestJS) - port 3005: FAILED"
+              echo "✗ Backend (NestJS) - port 8002: FAILED"
             fi
 
             # Test ML service
@@ -243,8 +248,8 @@ jobs:
             echo "🌐 Staging URL: http://stagingvision.nexaratech.io"
             echo ""
             echo "Services:"
-            echo "  • Frontend (Next.js): port 3004"
-            echo "  • Backend (NestJS): port 3005"
+            echo "  • Frontend (Next.js): port 8001"
+            echo "  • Backend (NestJS): port 8002"
             echo "  • ML Service (Python): port 8003"
             echo ""
             echo "PM2 Processes:"
