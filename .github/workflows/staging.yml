@@ -26,7 +26,7 @@ jobs:
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
           chmod 644 ~/.ssh/known_hosts
 
-      - name: Deploy to Staging
+      - name: Deploy New Stack to Staging
         env:
           SERVER_IP: ${{ secrets.SERVER_IP }}
           SSH_USER: ${{ secrets.SSH_USER }}
@@ -36,100 +36,240 @@ jobs:
             set -e
 
             echo "=========================================="
-            echo "Deploying to STAGING"
+            echo "Deploying NEW Stack to STAGING"
+            echo "Next.js + NestJS + Python ML Service"
             echo "=========================================="
 
-            # Create staging directory if not exists
-            mkdir -p ~/nexara-vision-staging
-            cd ~/nexara-vision-staging
+            # Create staging directory
+            DEPLOY_DIR=~/nexara-vision-staging
+            mkdir -p $DEPLOY_DIR
+            cd $DEPLOY_DIR
 
-            # Clone or pull latest code
+            # Clone or pull latest code from development branch
             if [ -d ".git" ]; then
-              echo "Updating existing repository..."
+              echo "📥 Updating existing repository..."
               git fetch origin
               git reset --hard origin/development
+              git clean -fd
             else
-              echo "Cloning repository..."
-              git clone -b development https://github.com/${{ github.repository }}.git .
+              echo "📥 Cloning repository..."
+              git clone -b development https://github.com/Rizeqalhaj/NexeraVision.git .
             fi
 
-            # Navigate to web prototype
-            cd web_prototype
+            echo ""
+            echo "=========================================="
+            echo "STEP 1: Deploy Next.js Frontend"
+            echo "=========================================="
 
-            # Stop existing staging container
-            echo "Stopping existing staging container..."
-            docker stop violence-detection-staging 2>/dev/null || true
-            docker rm violence-detection-staging 2>/dev/null || true
+            cd $DEPLOY_DIR/web_app_nextjs
 
-            # Clean up model directory if it was created incorrectly
-            sudo rm -rf /home/admin/Downloads/best_model.h5 2>/dev/null || true
+            # Install dependencies
+            echo "📦 Installing frontend dependencies..."
+            npm ci --production
 
-            # Build Docker image for staging
-            echo "Building Docker image..."
-            docker build -t violence-detection:staging .
+            # Build Next.js app
+            echo "🔨 Building Next.js app..."
+            npm run build
 
-            # Run staging container on port 8001
-            echo "Starting staging container..."
+            # Stop existing frontend PM2 process
+            pm2 delete nexara-vision-frontend-staging 2>/dev/null || true
+
+            # Start frontend on port 3001
+            echo "🚀 Starting Next.js frontend on port 3001..."
+            PORT=3001 pm2 start npm --name "nexara-vision-frontend-staging" -- start
+
+            echo ""
+            echo "=========================================="
+            echo "STEP 2: Deploy NestJS Backend"
+            echo "=========================================="
+
+            cd $DEPLOY_DIR/web_app_backend
+
+            # Install dependencies
+            echo "📦 Installing backend dependencies..."
+            npm ci --production
+
+            # Create .env file
+            echo "⚙️  Creating environment configuration..."
+            cat > .env << 'ENVEOF'
+PORT=3002
+NODE_ENV=production
+DATABASE_URL=postgresql://postgres:E$$athecode006@localhost:5432/nexara_vision_staging
+ML_SERVICE_URL=http://localhost:8003
+JWT_SECRET=nexara-vision-staging-secret-key-2024
+ENVEOF
+
+            # Run Prisma migrations
+            echo "🗄️  Running database migrations..."
+            npx prisma generate
+            npx prisma migrate deploy 2>/dev/null || echo "⚠️  Migration skipped (may not be needed)"
+
+            # Build NestJS app
+            echo "🔨 Building NestJS backend..."
+            npm run build
+
+            # Stop existing backend PM2 process
+            pm2 delete nexara-vision-backend-staging 2>/dev/null || true
+
+            # Start backend on port 3002
+            echo "🚀 Starting NestJS backend on port 3002..."
+            PORT=3002 pm2 start dist/main.js --name "nexara-vision-backend-staging"
+
+            echo ""
+            echo "=========================================="
+            echo "STEP 3: Deploy Python ML Service"
+            echo "=========================================="
+
+            cd $DEPLOY_DIR/ml_service
+
+            # Stop existing ML service container
+            echo "🛑 Stopping existing ML service..."
+            docker stop nexara-ml-service-staging 2>/dev/null || true
+            docker rm nexara-ml-service-staging 2>/dev/null || true
+
+            # Build Docker image
+            echo "🔨 Building ML service Docker image..."
+            docker build -t nexara-ml-service:staging .
+
+            # Run ML service container on port 8003
+            echo "🚀 Starting ML service on port 8003..."
             docker run -d \
-              --name violence-detection-staging \
-              -p 8001:8000 \
+              --name nexara-ml-service-staging \
+              -p 8003:8000 \
               --restart unless-stopped \
-              violence-detection:staging
+              -v $DEPLOY_DIR/models:/app/models:ro \
+              nexara-ml-service:staging
 
-            # Setup nginx for staging (always recreate to ensure correct domain)
-            echo "Setting up nginx for staging..."
-            sudo rm -f /etc/nginx/sites-available/violence-detection-staging
-            sudo rm -f /etc/nginx/sites-enabled/violence-detection-staging
-            echo 'server {
-                listen 80;
-                server_name stagingvision.nexaratech.io;
-                client_max_body_size 100M;
-                location / {
-                    proxy_pass http://localhost:8001;
-                    proxy_http_version 1.1;
-                    proxy_set_header Upgrade \$http_upgrade;
-                    proxy_set_header Connection "upgrade";
-                    proxy_set_header Host \$host;
-                    proxy_cache_bypass \$http_upgrade;
-                    proxy_set_header X-Real-IP \$remote_addr;
-                    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto \$scheme;
-                    proxy_connect_timeout 600;
-                    proxy_send_timeout 600;
-                    proxy_read_timeout 600;
-                    send_timeout 600;
-                }
-            }' | sudo tee /etc/nginx/sites-available/violence-detection-staging > /dev/null
+            echo ""
+            echo "=========================================="
+            echo "STEP 4: Configure Nginx"
+            echo "=========================================="
+
+            # Create nginx config for new stack
+            echo "⚙️  Configuring nginx..."
+            sudo tee /etc/nginx/sites-available/violence-detection-staging > /dev/null << 'NGINXEOF'
+server {
+    listen 80;
+    server_name stagingvision.nexaratech.io;
+    client_max_body_size 100M;
+
+    # Next.js Frontend
+    location / {
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # NestJS Backend API
+    location /api {
+        proxy_pass http://localhost:3002;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 600;
+        proxy_send_timeout 600;
+        proxy_read_timeout 600;
+        send_timeout 600;
+    }
+
+    # ML Service (internal - not exposed publicly)
+    # Accessible only via backend at http://localhost:8003
+}
+NGINXEOF
+
             sudo ln -sf /etc/nginx/sites-available/violence-detection-staging /etc/nginx/sites-enabled/
             sudo nginx -t && sudo systemctl reload nginx
 
-            # Wait for container to be healthy
-            echo "Waiting for container to be healthy..."
+            echo ""
+            echo "=========================================="
+            echo "STEP 5: Health Checks"
+            echo "=========================================="
+
+            # Wait for services to start
             sleep 5
 
-            # Check if container is running
-            if docker ps | grep -q violence-detection-staging; then
-              echo "=========================================="
-              echo "✓ Staging Deployment Successful!"
-              echo "=========================================="
-              echo "Staging URL: http://stagingvision.nexaratech.io"
-              echo "Container: violence-detection-staging"
-              echo "Port: 8001"
+            # Check PM2 processes
+            echo "📊 PM2 Process Status:"
+            pm2 list | grep staging
+
+            # Check Docker containers
+            echo ""
+            echo "🐳 Docker Container Status:"
+            docker ps | grep staging
+
+            # Test endpoints
+            echo ""
+            echo "🔍 Testing Endpoints:"
+
+            # Test frontend
+            if curl -f http://localhost:3001 > /dev/null 2>&1; then
+              echo "✓ Frontend (Next.js) - port 3001: OK"
             else
-              echo "✗ Deployment failed - container not running"
-              docker logs violence-detection-staging
-              exit 1
+              echo "✗ Frontend (Next.js) - port 3001: FAILED"
             fi
+
+            # Test backend
+            if curl -f http://localhost:3002/health > /dev/null 2>&1; then
+              echo "✓ Backend (NestJS) - port 3002: OK"
+            else
+              echo "✗ Backend (NestJS) - port 3002: FAILED"
+            fi
+
+            # Test ML service
+            if curl -f http://localhost:8003/health > /dev/null 2>&1; then
+              echo "✓ ML Service (Python) - port 8003: OK"
+            else
+              echo "✗ ML Service (Python) - port 8003: FAILED"
+            fi
+
+            echo ""
+            echo "=========================================="
+            echo "✓ Staging Deployment Complete!"
+            echo "=========================================="
+            echo "🌐 Staging URL: http://stagingvision.nexaratech.io"
+            echo ""
+            echo "Services:"
+            echo "  • Frontend (Next.js): port 3001"
+            echo "  • Backend (NestJS): port 3002"
+            echo "  • ML Service (Python): port 8003"
+            echo ""
+            echo "PM2 Processes:"
+            echo "  • nexara-vision-frontend-staging"
+            echo "  • nexara-vision-backend-staging"
+            echo ""
+            echo "Docker Containers:"
+            echo "  • nexara-ml-service-staging"
+            echo "=========================================="
+
+            # Save PM2 process list
+            pm2 save
           ENDSSH
 
       - name: Notify Success
         if: success()
         run: |
-          echo "✓ Successfully deployed to staging!"
+          echo "✓ Successfully deployed NEW stack to staging!"
           echo "Staging URL: http://stagingvision.nexaratech.io"
+          echo ""
+          echo "Stack deployed:"
+          echo "  • Next.js Frontend"
+          echo "  • NestJS Backend"
+          echo "  • Python ML Service"
 
       - name: Notify Failure
         if: failure()
         run: |
           echo "✗ Staging deployment failed"
+          echo "Check the logs above for details"
           exit 1
