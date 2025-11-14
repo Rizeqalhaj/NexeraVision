@@ -81,32 +81,32 @@ jobs:
             # Setup nginx for production if not exists
             if [ ! -f "/etc/nginx/sites-available/violence-detection" ]; then
               echo "Setting up nginx for production..."
-              sudo tee /etc/nginx/sites-available/violence-detection > /dev/null <<'EOF'
-server {
-    listen 80;
-    server_name vision.nexaratech.io;
+              sudo tee /etc/nginx/sites-available/violence-detection > /dev/null << 'NGINX_EOF'
+            server {
+                listen 80;
+                server_name vision.nexaratech.io;
 
-    client_max_body_size 100M;
+                client_max_body_size 100M;
 
-    location / {
-        proxy_pass http://localhost:8000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_cache_bypass \$http_upgrade;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+                location / {
+                    proxy_pass http://localhost:8000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection 'upgrade';
+                    proxy_set_header Host $host;
+                    proxy_cache_bypass $http_upgrade;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
 
-        # Timeouts for video processing
-        proxy_connect_timeout 600;
-        proxy_send_timeout 600;
-        proxy_read_timeout 600;
-        send_timeout 600;
-    }
-}
-EOF
+                    # Timeouts for video processing
+                    proxy_connect_timeout 600;
+                    proxy_send_timeout 600;
+                    proxy_read_timeout 600;
+                    send_timeout 600;
+                }
+            }
+            NGINX_EOF
               sudo ln -sf /etc/nginx/sites-available/violence-detection /etc/nginx/sites-enabled/
               sudo nginx -t && sudo systemctl reload nginx
             fi
