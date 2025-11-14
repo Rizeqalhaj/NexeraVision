@@ -94,7 +94,7 @@ jobs:
             cat > .env << 'ENVEOF'
 PORT=3002
 NODE_ENV=production
-DATABASE_URL=postgresql://postgres:E$$athecode006@localhost:5432/nexara_vision_staging
+DATABASE_URL=postgresql://postgres:E\$\$athecode006@localhost:5432/nexara_vision_staging
 ML_SERVICE_URL=http://localhost:8003
 JWT_SECRET=nexara-vision-staging-secret-key-2024
 ENVEOF
