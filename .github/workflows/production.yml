@@ -78,7 +78,7 @@ jobs:
             docker run -d \
               --name violence-detection \
               -p 8002:8000 \
-              -v /home/admin/Downloads/best_model.h5:/home/admin/Downloads/best_model.h5:ro \
+              -v /home/admin/Downloads/best_model.h5:/app/models/ultimate_best_model.h5:ro \
               --restart unless-stopped \
               violence-detection:production
 
@@ -152,7 +152,7 @@ jobs:
                 docker run -d \
                   --name violence-detection \
                   -p 8002:8000 \
-                  -v /home/admin/Downloads/best_model.h5:/home/admin/Downloads/best_model.h5:ro \
+                  -v /home/admin/Downloads/best_model.h5:/app/models/ultimate_best_model.h5:ro \
                   --restart unless-stopped \
                   $BACKUP_IMAGE
               fi
