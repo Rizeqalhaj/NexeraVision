@@ -512,8 +512,10 @@ async def startup_event():
         print("   - Video Upload Mode: ✅")
         print("   - Live Detection Mode: ✅")
     except Exception as e:
-        print(f"❌ Failed to load models: {e}")
-        raise
+        print(f"⚠️  Failed to load models: {e}")
+        print("⚠️  Running in demo mode without model")
+        print("🚀 Nexara Vision Prototype API ready (Demo Mode)")
+        # Don't raise - allow app to start without models
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -522,6 +524,14 @@ async def root():
     if html_path.exists():
         return html_path.read_text()
     return "<h1>Nexara Vision Prototype</h1><p>API is running</p>"
+
+@app.get("/dashboard.html", response_class=HTMLResponse)
+async def dashboard():
+    """Serve dashboard interface"""
+    html_path = Path(__file__).parent.parent / "frontend" / "dashboard.html"
+    if html_path.exists():
+        return html_path.read_text()
+    return "<h1>Dashboard not found</h1>"
 
 @app.get("/api/health")
 async def health_check():
