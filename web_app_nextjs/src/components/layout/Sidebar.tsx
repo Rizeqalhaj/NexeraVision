@@ -10,7 +10,8 @@ import {
   Bell,
   Settings,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -105,7 +106,26 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-[var(--border)]">
+      <div className="p-4 border-t border-[var(--border)] space-y-3">
+        {/* Logout Button */}
+        <button
+          onClick={() => {
+            // Handle logout logic here
+            console.log('Logout clicked');
+          }}
+          className={cn(
+            "flex items-center gap-3 px-3 py-2 rounded-lg transition-all w-full",
+            "hover:bg-red-500/10 text-red-500 hover:text-red-600"
+          )}
+          title={collapsed ? 'Logout' : undefined}
+        >
+          <LogOut className="h-5 w-5 flex-shrink-0" />
+          {!collapsed && (
+            <span className="font-medium">Logout</span>
+          )}
+        </button>
+
+        {/* Copyright */}
         {!collapsed && (
           <div className="text-xs text-[var(--text-secondary)]">
             <p>© 2025 NexaraVision</p>
