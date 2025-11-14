@@ -6,36 +6,39 @@
 
 ## 🚨 IMMEDIATE ACTIONS (Run on Vast.ai)
 
-### GPU Memory is Full - Must Clear Before Training
+### GPU 0 is Occupied - Using GPU 1 Instead
 
-**On your Vast.ai instance, run these commands:**
+**SIMPLE: Just run this one command on Vast.ai:**
+
+```bash
+cd /workspace
+chmod +x USE_GPU_1.sh
+./USE_GPU_1.sh
+```
+
+**That's it!** This script will:
+- ✅ Check GPU 1 availability
+- ✅ Set batch_size=1 (conservative)
+- ✅ Force GPU 1 mode (skip occupied GPU 0)
+- ✅ Start training immediately
+
+---
+
+### Alternative: Manual Steps
+
+If you prefer step-by-step:
 
 ```bash
 cd /workspace
 
-# Step 1: Clear GPU memory (kills existing processes)
-chmod +x CLEAR_GPU_MEMORY.sh
-./CLEAR_GPU_MEMORY.sh
+# Option 1: Use the simple script (recommended)
+./USE_GPU_1.sh
 
-# Step 2: Choose batch size configuration
-# Option A: Conservative (recommended first try)
-chmod +x FIX_SINGLE_GPU.sh
-./FIX_SINGLE_GPU.sh  # Sets batch_size=8
-
-# Option B: Ultra-conservative (if Option A still gives OOM)
-chmod +x USE_BATCH_SIZE_1.sh
+# Option 2: Manual approach
+export CUDA_VISIBLE_DEVICES=1
 ./USE_BATCH_SIZE_1.sh  # Sets batch_size=1
-
-# Step 3: Start training
-chmod +x START_TRAINING.sh
-./START_TRAINING.sh
+./START_TRAINING.sh    # Starts training on GPU 1
 ```
-
-**What to expect:**
-- CLEAR_GPU_MEMORY.sh will show current GPU usage and kill processes
-- FIX_SINGLE_GPU.sh sets batch_size=8 (~6-8 hour training)
-- USE_BATCH_SIZE_1.sh sets batch_size=1 (~20-30 hour training, but guaranteed to work)
-- START_TRAINING.sh forces single GPU mode and starts training
 
 **Monitor in another terminal:**
 ```bash
@@ -43,8 +46,8 @@ watch -n 1 nvidia-smi
 ```
 
 Look for:
-- GPU 0: 2-6 GB used (training active) ✅
-- GPU 1: 0 GB used (idle) ✅
+- **GPU 0**: Fully used (whatever process was already running) ⚠️
+- **GPU 1**: 2-3 GB used (YOUR training) ✅
 
 ---
 

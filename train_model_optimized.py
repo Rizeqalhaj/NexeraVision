@@ -10,8 +10,8 @@ import sys
 # ⚠️ CRITICAL: Set environment variables BEFORE importing TensorFlow
 # This forces single GPU mode and prevents OOM errors
 if 'CUDA_VISIBLE_DEVICES' not in os.environ:
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'  # Use only GPU 0
-    print("🎮 Forced CUDA_VISIBLE_DEVICES=0 (single GPU mode)")
+    os.environ['CUDA_VISIBLE_DEVICES'] = '1'  # Use only GPU 1 (GPU 0 is occupied)
+    print("🎮 Forced CUDA_VISIBLE_DEVICES=1 (using GPU 1, GPU 0 is occupied)")
 
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'  # Dynamic memory allocation
 os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'  # Better memory management
