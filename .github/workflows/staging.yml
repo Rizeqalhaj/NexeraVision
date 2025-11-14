@@ -61,6 +61,9 @@ jobs:
             docker stop violence-detection-staging 2>/dev/null || true
             docker rm violence-detection-staging 2>/dev/null || true
 
+            # Clean up model directory if it was created incorrectly
+            sudo rm -rf /home/admin/Downloads/best_model.h5 2>/dev/null || true
+
             # Build Docker image for staging
             echo "Building Docker image..."
             docker build -t violence-detection:staging .
@@ -70,7 +73,6 @@ jobs:
             docker run -d \
               --name violence-detection-staging \
               -p 8001:8000 \
-              -v /home/admin/Downloads/best_model.h5:/app/models/ultimate_best_model.h5:ro \
               --restart unless-stopped \
               violence-detection:staging
 

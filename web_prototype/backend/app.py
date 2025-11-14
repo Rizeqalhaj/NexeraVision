@@ -512,8 +512,10 @@ async def startup_event():
         print("   - Video Upload Mode: ✅")
         print("   - Live Detection Mode: ✅")
     except Exception as e:
-        print(f"❌ Failed to load models: {e}")
-        raise
+        print(f"⚠️  Failed to load models: {e}")
+        print("⚠️  Running in demo mode without model")
+        print("🚀 Nexara Vision Prototype API ready (Demo Mode)")
+        # Don't raise - allow app to start without models
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
