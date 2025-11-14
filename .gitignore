@@ -78,3 +78,19 @@ kaggle.json
 
 # Claude documentation
 claudedocs/
+
+# Deployment & Security
+*.pem
+*.key
+*_rsa
+*_ed25519
+.env
+.env.local
+.env.production
+.env.staging
+secrets/
+deploy_key*
+
+# Docker
+docker-compose.override.yml
+.dockerignore

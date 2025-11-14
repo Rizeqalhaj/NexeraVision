@@ -1,0 +1,186 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy-production:
+    name: Deploy to Production Environment
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://vision.nexaratech.io
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Production
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          PRODUCTION_DOMAIN: ${{ secrets.PRODUCTION_DOMAIN }}
+        run: |
+          ssh -i ~/.ssh/deploy_key ${SSH_USER}@${SERVER_IP} << 'ENDSSH'
+            set -e
+
+            echo "=========================================="
+            echo "Deploying to PRODUCTION"
+            echo "=========================================="
+
+            # Create production directory if not exists
+            mkdir -p ~/nexara-vision-production
+            cd ~/nexara-vision-production
+
+            # Clone or pull latest code
+            if [ -d ".git" ]; then
+              echo "Updating existing repository..."
+              git fetch origin
+              git reset --hard origin/main
+            else
+              echo "Cloning repository..."
+              git clone -b main https://github.com/${{ github.repository }}.git .
+            fi
+
+            # Navigate to web prototype
+            cd web_prototype
+
+            # Backup current container (just in case)
+            echo "Creating backup of current deployment..."
+            docker commit violence-detection violence-detection:backup-$(date +%Y%m%d-%H%M%S) 2>/dev/null || true
+
+            # Stop existing production container
+            echo "Stopping existing production container..."
+            docker stop violence-detection 2>/dev/null || true
+            docker rm violence-detection 2>/dev/null || true
+
+            # Build Docker image for production
+            echo "Building Docker image..."
+            docker build -t violence-detection:latest -t violence-detection:production .
+
+            # Run production container on port 8000
+            echo "Starting production container..."
+            docker run -d \
+              --name violence-detection \
+              -p 8000:8000 \
+              -v /home/admin/Downloads/best_model.h5:/home/admin/Downloads/best_model.h5:ro \
+              --restart unless-stopped \
+              violence-detection:production
+
+            # Setup nginx for production if not exists
+            if [ ! -f "/etc/nginx/sites-available/violence-detection" ]; then
+              echo "Setting up nginx for production..."
+              sudo tee /etc/nginx/sites-available/violence-detection > /dev/null <<'EOF'
+server {
+    listen 80;
+    server_name vision.nexaratech.io;
+
+    client_max_body_size 100M;
+
+    location / {
+        proxy_pass http://localhost:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+
+        # Timeouts for video processing
+        proxy_connect_timeout 600;
+        proxy_send_timeout 600;
+        proxy_read_timeout 600;
+        send_timeout 600;
+    }
+}
+EOF
+              sudo ln -sf /etc/nginx/sites-available/violence-detection /etc/nginx/sites-enabled/
+              sudo nginx -t && sudo systemctl reload nginx
+            fi
+
+            # Wait for container to be healthy
+            echo "Waiting for container to be healthy..."
+            sleep 5
+
+            # Health check
+            echo "Performing health check..."
+            for i in {1..30}; do
+              if curl -f http://localhost:8000/ > /dev/null 2>&1; then
+                echo "✓ Health check passed"
+                break
+              fi
+              if [ $i -eq 30 ]; then
+                echo "✗ Health check failed"
+                docker logs violence-detection
+                exit 1
+              fi
+              sleep 2
+            done
+
+            # Check if container is running
+            if docker ps | grep -q violence-detection; then
+              echo "=========================================="
+              echo "✓ Production Deployment Successful!"
+              echo "=========================================="
+              echo "Production URL: https://vision.nexaratech.io"
+              echo "Container: violence-detection"
+              echo "Port: 8000"
+
+              # Clean up old images (keep last 3 backups)
+              echo "Cleaning up old backup images..."
+              docker images | grep violence-detection:backup | tail -n +4 | awk '{print $3}' | xargs -r docker rmi 2>/dev/null || true
+            else
+              echo "✗ Deployment failed - container not running"
+              docker logs violence-detection
+
+              # Rollback to backup if available
+              echo "Attempting rollback..."
+              BACKUP_IMAGE=$(docker images | grep violence-detection:backup | head -n 1 | awk '{print $1":"$2}')
+              if [ ! -z "$BACKUP_IMAGE" ]; then
+                echo "Rolling back to $BACKUP_IMAGE"
+                docker run -d \
+                  --name violence-detection \
+                  -p 8000:8000 \
+                  -v /home/admin/Downloads/best_model.h5:/home/admin/Downloads/best_model.h5:ro \
+                  --restart unless-stopped \
+                  $BACKUP_IMAGE
+              fi
+              exit 1
+            fi
+          ENDSSH
+
+      - name: Cleanup SSH Key
+        if: always()
+        run: |
+          rm -f ~/.ssh/deploy_key
+
+      - name: Notify Success
+        if: success()
+        run: |
+          echo "=========================================="
+          echo "✓ Successfully deployed to production!"
+          echo "=========================================="
+          echo "Production URL: https://vision.nexaratech.io"
+          echo "Deployment Time: $(date)"
+
+      - name: Notify Failure
+        if: failure()
+        run: |
+          echo "=========================================="
+          echo "✗ Production deployment failed"
+          echo "=========================================="
+          echo "Please check the logs above for details"
+          exit 1

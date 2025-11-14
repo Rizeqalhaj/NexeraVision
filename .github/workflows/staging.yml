@@ -1,0 +1,140 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - development
+  workflow_dispatch:
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging Environment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Staging
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          STAGING_DOMAIN: ${{ secrets.STAGING_DOMAIN }}
+        run: |
+          ssh -i ~/.ssh/deploy_key ${SSH_USER}@${SERVER_IP} << 'ENDSSH'
+            set -e
+
+            echo "=========================================="
+            echo "Deploying to STAGING"
+            echo "=========================================="
+
+            # Create staging directory if not exists
+            mkdir -p ~/nexara-vision-staging
+            cd ~/nexara-vision-staging
+
+            # Clone or pull latest code
+            if [ -d ".git" ]; then
+              echo "Updating existing repository..."
+              git fetch origin
+              git reset --hard origin/development
+            else
+              echo "Cloning repository..."
+              git clone -b development https://github.com/${{ github.repository }}.git .
+            fi
+
+            # Navigate to web prototype
+            cd web_prototype
+
+            # Stop existing staging container
+            echo "Stopping existing staging container..."
+            docker stop violence-detection-staging 2>/dev/null || true
+            docker rm violence-detection-staging 2>/dev/null || true
+
+            # Build Docker image for staging
+            echo "Building Docker image..."
+            docker build -t violence-detection:staging .
+
+            # Run staging container on port 8001
+            echo "Starting staging container..."
+            docker run -d \
+              --name violence-detection-staging \
+              -p 8001:8000 \
+              -v /home/admin/Downloads/best_model.h5:/home/admin/Downloads/best_model.h5:ro \
+              --restart unless-stopped \
+              violence-detection:staging
+
+            # Setup nginx for staging if not exists
+            if [ ! -f "/etc/nginx/sites-available/violence-detection-staging" ]; then
+              echo "Setting up nginx for staging..."
+              sudo tee /etc/nginx/sites-available/violence-detection-staging > /dev/null <<'EOF'
+server {
+    listen 80;
+    server_name stagingvision.nexara.io;
+
+    client_max_body_size 100M;
+
+    location / {
+        proxy_pass http://localhost:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+
+        # Timeouts for video processing
+        proxy_connect_timeout 600;
+        proxy_send_timeout 600;
+        proxy_read_timeout 600;
+        send_timeout 600;
+    }
+}
+EOF
+              sudo ln -sf /etc/nginx/sites-available/violence-detection-staging /etc/nginx/sites-enabled/
+              sudo nginx -t && sudo systemctl reload nginx
+            fi
+
+            # Wait for container to be healthy
+            echo "Waiting for container to be healthy..."
+            sleep 5
+
+            # Check if container is running
+            if docker ps | grep -q violence-detection-staging; then
+              echo "=========================================="
+              echo "✓ Staging Deployment Successful!"
+              echo "=========================================="
+              echo "Staging URL: http://stagingvision.nexara.io"
+              echo "Container: violence-detection-staging"
+              echo "Port: 8001"
+            else
+              echo "✗ Deployment failed - container not running"
+              docker logs violence-detection-staging
+              exit 1
+            fi
+          ENDSSH
+
+      - name: Cleanup SSH Key
+        if: always()
+        run: |
+          rm -f ~/.ssh/deploy_key
+
+      - name: Notify Success
+        if: success()
+        run: |
+          echo "✓ Successfully deployed to staging!"
+          echo "Staging URL: http://stagingvision.nexara.io"
+
+      - name: Notify Failure
+        if: failure()
+        run: |
+          echo "✗ Staging deployment failed"
+          exit 1
