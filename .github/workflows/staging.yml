@@ -99,16 +99,16 @@ jobs:
 
             # Create .env file
             echo "⚙️  Creating environment configuration..."
-            {
-              echo "PORT=8002"
-              echo "NODE_ENV=production"
-              echo "DATABASE_URL=postgresql://postgres:E\$\$athecode006@localhost:5432/nexara_vision_staging"
-              echo "ML_SERVICE_URL=http://localhost:8003"
-              echo "JWT_SECRET=nexara-vision-staging-secret-key-2024"
-              echo "REDIS_HOST=localhost"
-              echo "REDIS_PORT=6379"
-              echo "CORS_ORIGIN=http://stagingvision.nexaratech.io,http://localhost:8001"
-            } > .env
+            cat > .env << 'ENVEOF'
+PORT=8002
+NODE_ENV=production
+DATABASE_URL=postgresql://postgres:E$$athecode006@localhost:5432/nexara_vision_staging
+ML_SERVICE_URL=http://localhost:8003
+JWT_SECRET=nexara-vision-staging-secret-key-2024
+REDIS_HOST=localhost
+REDIS_PORT=6379
+CORS_ORIGIN=http://stagingvision.nexaratech.io,http://localhost:8001
+ENVEOF
 
             # Run Prisma migrations
             echo "🗄️  Running database migrations..."
