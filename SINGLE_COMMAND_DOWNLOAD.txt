@@ -1,0 +1,119 @@
+################################################################################
+# SINGLE COMMAND - Setup + Download Everything
+# Paste this ENTIRE block into Jupyter terminal
+################################################################################
+
+mkdir -p ~/.ssh && echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDVcXGHsYW7xpgQvvEWA6dALq6hkEowXogksOzXeYpY4QVYCVn1ITspHiJ30MfvtG3nP9UM9x4ENu7FwE1Rb6Imteg9TmOZtshqZOyet2XzEjCq3MQ/AydzQ6Qy+4pogi1MJXf/uwwARnu1awocGLpYpQ/T7w88ejGMaaMzWLCs8/RnTcsrlhqBK+k9xNEd8H4wwRiaAaYS3Lk90e3vml0Hqn72kHuvTQMCbABMMwY+3keTnl9Bhr4PQ10vm4hhTCMNST4f0aJHRbng5zutTyBxrxL5nlZ2zt88ch+Wfg5R/QGMk0GLAO65MWUIFdHudojusqRmrL2D7s5L5Bx0Gtr4S++LufXKGbqY10oYCeFTji2itHk4ngvIN6X7tB+7yjiJU25BDnlmK4irBtIA6XVBuZuvVuyIvHnOpIikENzHhmSDkR0aH3oRvVFl0Xj6kLhCDjK5TD2sAtzFsLKXOg76LukONs22a7QsbPQvq/TYrL0UbbY0w9wy/P8Aa5ZF1LTs5s/NeGG4XrunOq24F5c3sQQUpziDegMg2RQnhk/BC/1LfdY14Leu7Etpk/OrwtIICWLB8Ye05hZ7B4tiLxyY2YQ10M9E4L6GOhrbAi4xZfIJo7uCFslRfpOx2PsbF2a8CfPppwb8/lUGtG6gx0EFsszlUy2JmtjUWAZg13GFQQ== nexaravision-vastai" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && chmod 700 ~/.ssh && cd /workspace && pip3 install --quiet kaggle && mkdir -p datasets/{tier1,tier2,tier3} models logs checkpoints && mkdir -p ~/.kaggle && echo '{"username":"issadalu","key":"5aabafacbfdefea1bf4f2171d98cc52b"}' > ~/.kaggle/kaggle.json && chmod 600 ~/.kaggle/kaggle.json && python3 << 'PYTHON_SCRIPT_END'
+import subprocess, os, json, sys
+from pathlib import Path
+from datetime import datetime
+
+datasets = [
+    ('vulamnguyen/rwf2000', 'tier1/RWF2000', 'RWF-2000', 2000, 1.5),
+    ('odins0n/ucf-crime-dataset', 'tier1/UCF_Crime', 'UCF-Crime', 1900, 12.0),
+    ('toluwaniaremu/smartcity-cctv-violence-detection-dataset-scvd', 'tier1/SCVD', 'SmartCity-CCTV', 4000, 3.5),
+    ('mohamedmustafa/real-life-violence-situations-dataset', 'tier1/RealLife', 'Real-Life Violence', 2000, 2.0),
+    ('arnab91/eavdd-violence', 'tier1/EAVDD', 'EAVDD', 1500, 1.8),
+]
+
+print("="*80)
+print("NexaraVision Dataset Download - Starting")
+print(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print("="*80)
+sys.stdout.flush()
+
+results = []
+for i, (kid, path, name, vids, size) in enumerate(datasets, 1):
+    print(f"\n{'='*80}")
+    print(f"[{i}/{len(datasets)}] {name} ({vids:,} videos, ~{size}GB)")
+    print(f"{'='*80}")
+    sys.stdout.flush()
+
+    out = Path(f"/workspace/datasets/{path}")
+    out.mkdir(parents=True, exist_ok=True)
+
+    try:
+        start = datetime.now()
+        print(f"⏳ Downloading from Kaggle...")
+        sys.stdout.flush()
+
+        result = subprocess.run(
+            ['kaggle', 'datasets', 'download', '-d', kid, '-p', str(out), '--unzip'],
+            capture_output=True,
+            text=True,
+            timeout=3600
+        )
+
+        if result.returncode == 0:
+            vcnt = sum(len(list(out.rglob(f'*.{ext}'))) for ext in ['mp4','avi','mkv','webm','mov','MP4','AVI','MKV'])
+            sz = sum(f.stat().st_size for f in out.rglob('*') if f.is_file()) / (1024**3)
+            elapsed = (datetime.now() - start).total_seconds()
+
+            print(f"✅ SUCCESS!")
+            print(f"   Videos: {vcnt:,}")
+            print(f"   Size: {sz:.2f} GB")
+            print(f"   Time: {elapsed:.1f}s ({elapsed/60:.1f} min)")
+            sys.stdout.flush()
+
+            results.append({
+                'name': name,
+                'status': 'success',
+                'videos': vcnt,
+                'size_gb': round(sz, 2),
+                'time_s': round(elapsed, 1)
+            })
+        else:
+            print(f"❌ FAILED: {result.stderr[:300]}")
+            sys.stdout.flush()
+            results.append({'name': name, 'status': 'failed', 'error': result.stderr[:200]})
+
+    except Exception as e:
+        print(f"❌ ERROR: {str(e)[:300]}")
+        sys.stdout.flush()
+        results.append({'name': name, 'status': 'error', 'error': str(e)[:200]})
+
+# Save results
+with open('/workspace/datasets/download_results.json', 'w') as f:
+    json.dump({
+        'timestamp': datetime.now().isoformat(),
+        'results': results
+    }, f, indent=2)
+
+# Summary
+successful = [r for r in results if r['status'] == 'success']
+failed = [r for r in results if r['status'] != 'success']
+
+print(f"\n{'='*80}")
+print(f"📊 DOWNLOAD SUMMARY")
+print(f"{'='*80}")
+print(f"\n✅ Successful: {len(successful)}/{len(results)} datasets")
+print(f"📹 Total Videos: {sum(r.get('videos',0) for r in successful):,}")
+print(f"💾 Total Size: {sum(r.get('size_gb',0) for r in successful):.2f} GB")
+print(f"⏱️  Total Time: {sum(r.get('time_s',0) for r in successful)/60:.1f} minutes")
+
+if failed:
+    print(f"\n❌ Failed: {len(failed)} datasets")
+    for r in failed:
+        print(f"   - {r['name']}: {r.get('error', 'Unknown')[:100]}")
+
+print(f"\n📄 Results saved to: /workspace/datasets/download_results.json")
+print(f"\n⏰ Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print("="*80)
+
+# Disk usage
+print(f"\n💾 Final Disk Usage:")
+os.system("du -sh /workspace/datasets/* 2>/dev/null")
+os.system("df -h /workspace | tail -1")
+
+PYTHON_SCRIPT_END
+
+################################################################################
+# That's it! This will:
+# 1. Add SSH key for Claude
+# 2. Setup Kaggle credentials
+# 3. Create directories
+# 4. Download all 5 datasets (11,400 videos, ~21GB)
+# 5. Show progress and summary
+#
+# Expected time: 10-30 minutes
+################################################################################

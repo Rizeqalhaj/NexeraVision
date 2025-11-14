@@ -1,0 +1,1 @@
+- update everything to progress.md before compact always
