@@ -68,3 +68,13 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+
+# Large dataset directories
+datasets/
+downloaded_models/
+
+# Kaggle credentials
+kaggle.json
+
+# Claude documentation
+claudedocs/

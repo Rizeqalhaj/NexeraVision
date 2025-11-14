@@ -1,0 +1,296 @@
+╔═══════════════════════════════════════════════════════════════════════════════════╗
+║                    NEXARA VISION ENTERPRISE ARCHITECTURE                          ║
+║                         Production-Ready Violence Detection                       ║
+╚═══════════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                                   FRONTEND LAYER                                 │
+│                          vision.nexaratech.io:3006                              │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  • Next.js Application                                                          │
+│  • User Interface                                                               │
+│  • Video Upload                                                                 │
+│  • Model Selection                                                              │
+│  • Results Display                                                              │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                       │
+                                       │ HTTP POST / WebSocket
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                               API GATEWAY LAYER                                  │
+│                          31.57.166.18:8005 → :8000                              │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  REST ENDPOINTS:                                                                │
+│    • POST /upload              → Video upload and analysis                      │
+│    • GET  /api/health          → System health check                           │
+│    • GET  /api/models          → Available models info                         │
+│    • GET  /api/info            → System information                            │
+│    • GET  /api/stats           → Live statistics                               │
+│    • GET  /api/docs            → Swagger documentation                         │
+│    • GET  /api/redoc           → ReDoc documentation                           │
+│                                                                                 │
+│  WEBSOCKET ENDPOINTS:                                                           │
+│    • WS /ws/analyze            → Upload with progress                          │
+│    • WS /ws/live               → Live camera detection                         │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                       │
+                                       │ FastAPI Application
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                            BUSINESS LOGIC LAYER                                  │
+│                        FastAPI Backend (904 lines)                              │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  CORE COMPONENTS:                                                               │
+│                                                                                 │
+│  1. Request Handler                                                             │
+│     • File validation (type, size)                                             │
+│     • Model selection                                                          │
+│     • Error handling                                                           │
+│     • Response formatting                                                      │
+│                                                                                 │
+│  2. Model Manager                                                              │
+│     • Model loading/caching                                                    │
+│     • Multi-model support (5 models)                                           │
+│     • Intelligent fallback                                                     │
+│     • Memory management                                                        │
+│                                                                                 │
+│  3. Video Processor                                                            │
+│     • Frame extraction (20 frames)                                             │
+│     • Video codec handling                                                     │
+│     • Progress tracking                                                        │
+│     • Real-time updates                                                        │
+│                                                                                 │
+│  4. Feature Extractor                                                          │
+│     • VGG19 pre-processing                                                     │
+│     • Feature extraction                                                       │
+│     • Batch processing                                                         │
+│     • Caching                                                                  │
+│                                                                                 │
+│  5. Logging & Monitoring                                                       │
+│     • Timestamp logging                                                        │
+│     • Error tracking                                                           │
+│     • Performance metrics                                                      │
+│     • Session management                                                       │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                       │
+                                       │ Model Inference
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                             AI/ML MODEL LAYER                                    │
+│                          /root/nexara_models → /app/models                      │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  FEATURE EXTRACTION:                                                            │
+│    • VGG19 (ImageNet pre-trained)                                              │
+│    • FC2 layer output (4096 features)                                          │
+│    • Input: 224x224 RGB frames                                                 │
+│                                                                                 │
+│  CLASSIFICATION MODELS (5 available):                                           │
+│                                                                                 │
+│    1. best_model.h5 (29 MB)                                                    │
+│       • General purpose violence detection                                     │
+│       • Balanced accuracy/speed                                                │
+│                                                                                 │
+│    2. ultimate_best_model.h5 (29 MB) [DEFAULT]                                 │
+│       • Optimized for production                                               │
+│       • Best overall accuracy                                                  │
+│       • Recommended for most use cases                                         │
+│                                                                                 │
+│    3. ensemble_m1_best.h5 (29 MB)                                              │
+│       • High accuracy scenarios                                                │
+│       • Ensemble component 1                                                   │
+│                                                                                 │
+│    4. ensemble_m2_best.h5 (29 MB)                                              │
+│       • Balanced performance                                                   │
+│       • Ensemble component 2                                                   │
+│                                                                                 │
+│    5. ensemble_m3_best.h5 (29 MB)                                              │
+│       • Alternative validation                                                 │
+│       • Ensemble component 3                                                   │
+│                                                                                 │
+│  MODEL ARCHITECTURE (all models):                                              │
+│    Input: (20, 4096) features                                                  │
+│    • Feature compression (512 units)                                           │
+│    • BiLSTM layers (96/96/48 units)                                            │
+│    • Attention mechanism                                                       │
+│    • Dense layers (128/64 units)                                               │
+│    • Output: 2-class softmax (violence/non-violence)                           │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                       │
+                                       │ Prediction
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              RESPONSE LAYER                                      │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  JSON RESPONSE:                                                                 │
+│  {                                                                              │
+│    "violence_probability": 12.34,        // Violence % (0-100)                 │
+│    "non_violence_probability": 87.66,    // Non-violence % (0-100)             │
+│    "classification": "NON-VIOLENT",      // Final classification                │
+│    "processing_time": 3.45,              // Seconds                            │
+│    "model_used": "ultimate_best_model",  // Model identifier                   │
+│    "frames_analyzed": 20,                // Frame count                         │
+│    "confidence": 87.66,                  // Max probability                     │
+│    "timestamp": "2025-11-06T..."         // ISO timestamp                       │
+│  }                                                                              │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+                              DEPLOYMENT ARCHITECTURE
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                            DOCKER CONTAINER                                      │
+│                      nexara-vision-detection                                    │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│  Image: nexara-vision:production-v2                                             │
+│  Base: python:3.10-slim                                                         │
+│                                                                                 │
+│  INSTALLED:                                                                     │
+│    • FastAPI 0.104.1                                                           │
+│    • TensorFlow 2.15.0                                                         │
+│    • OpenCV 4.8.1.78 (headless)                                                │
+│    • Uvicorn (ASGI server)                                                     │
+│    • NumPy, Pillow                                                             │
+│                                                                                 │
+│  PORTS:                                                                         │
+│    • 8005 (host) → 8000 (container)                                            │
+│                                                                                 │
+│  VOLUMES:                                                                       │
+│    • /root/nexara_models → /app/models (read-only)                             │
+│                                                                                 │
+│  HEALTH CHECK:                                                                  │
+│    • Interval: 30s                                                             │
+│    • Timeout: 10s                                                              │
+│    • Endpoint: /api/health                                                     │
+│                                                                                 │
+│  RESTART POLICY:                                                                │
+│    • unless-stopped                                                            │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+                                DATA FLOW DIAGRAM
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+  USER                FRONTEND              API                 PROCESSOR           AI MODEL
+   │                    │                    │                      │                  │
+   │                    │                    │                      │                  │
+   │  Upload Video      │                    │                      │                  │
+   ├───────────────────>│                    │                      │                  │
+   │                    │  POST /upload      │                      │                  │
+   │                    │  (multipart/form)  │                      │                  │
+   │                    ├───────────────────>│                      │                  │
+   │                    │                    │  Validate Request    │                  │
+   │                    │                    ├─────────────────────>│                  │
+   │                    │                    │  Extract 20 Frames   │                  │
+   │                    │                    │<─────────────────────┤                  │
+   │                    │                    │                      │  VGG19 Features  │
+   │                    │                    │                      ├─────────────────>│
+   │                    │                    │                      │  4096 per frame  │
+   │                    │                    │                      │<─────────────────┤
+   │                    │                    │                      │  Load Model      │
+   │                    │                    │                      ├─────────────────>│
+   │                    │                    │                      │  BiLSTM+Attention│
+   │                    │                    │                      │<─────────────────┤
+   │                    │                    │                      │  Prediction      │
+   │                    │                    │  Response JSON       │                  │
+   │                    │  JSON Result       │<─────────────────────┤                  │
+   │                    │<───────────────────┤                      │                  │
+   │  Display Results   │                    │                      │                  │
+   │<───────────────────┤                    │                      │                  │
+   │                    │                    │                      │                  │
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+                              DEPLOYMENT WORKFLOW
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+   LOCAL MACHINE                         PRODUCTION SERVER
+        │                                      │
+        │  1. Build Docker Image               │
+        ├──────────────────────>               │
+        │  (Dockerfile.production)             │
+        │                                      │
+        │  2. Save & Transfer Image            │
+        ├──────────────────────────────────────>
+        │  (docker save | scp)                 │
+        │                                      │
+        │  3. Copy Models (5 files)            │
+        ├──────────────────────────────────────>
+        │  (scp *.h5)                          │
+        │                                      │
+        │                                      │  4. Load Image
+        │                                      ├───────────────>
+        │                                      │  (docker load)
+        │                                      │
+        │                                      │  5. Stop Old Container
+        │                                      ├───────────────>
+        │                                      │  (docker stop/rm)
+        │                                      │
+        │                                      │  6. Start New Container
+        │                                      ├───────────────>
+        │                                      │  (docker run -v ...)
+        │                                      │
+        │  7. Verify Deployment                │
+        ├──────────────────────────────────────>
+        │  (curl health/models)                │
+        │                                      │
+        │<─────────────────────────────────────┤
+        │  ✅ Deployment Complete               │
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+                           SYSTEM SPECIFICATIONS
+
+═══════════════════════════════════════════════════════════════════════════════════
+
+BACKEND:
+  • Language:        Python 3.10
+  • Framework:       FastAPI 0.104.1
+  • ASGI Server:     Uvicorn
+  • AI Framework:    TensorFlow 2.15.0
+  • Video:           OpenCV 4.8.1.78
+  • Lines of Code:   904
+
+MODELS:
+  • Total Models:    5
+  • Total Size:      ~145 MB
+  • Architecture:    BiLSTM + Attention
+  • Input:           20 frames × 4096 features
+  • Output:          2-class softmax
+  • Feature Ext:     VGG19 (ImageNet)
+
+DEPLOYMENT:
+  • Container:       Docker
+  • Server:          31.57.166.18
+  • Port:            8005 (external)
+  • Restart:         unless-stopped
+  • Health Check:    Every 30s
+  • Models Mount:    Read-only volume
+
+PERFORMANCE:
+  • Cold Start:      ~30 seconds
+  • Model Load:      ~5-8 seconds
+  • Processing:      ~3-10 seconds/video
+  • Memory:          ~2-3 GB per model
+  • CPU:             4+ cores recommended
+
+API:
+  • Protocol:        HTTP + WebSocket
+  • Format:          JSON
+  • CORS:            Enabled
+  • Docs:            Swagger/ReDoc
+  • Standards:       OpenAPI 3.0
+
+
+═══════════════════════════════════════════════════════════════════════════════════
+                              END OF ARCHITECTURE
+═══════════════════════════════════════════════════════════════════════════════════

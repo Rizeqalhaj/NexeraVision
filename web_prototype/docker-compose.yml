@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  violence-detection:
+    build: .
+    container_name: violence-detection-app
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount the model from host
+      - /home/admin/Downloads/best_model.h5:/home/admin/Downloads/best_model.h5:ro
+      # Optional: mount temporary upload directory
+      - ./uploads:/tmp/uploads
+    environment:
+      - TF_CPP_MIN_LOG_LEVEL=2
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    # Optional: GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]

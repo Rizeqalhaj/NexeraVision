@@ -1,0 +1,478 @@
+#!/usr/bin/env python3
+"""
+HYBRID OPTIMAL - GPU-ACCELERATED EXTRACTION
+Optimized for slow CPUs by batching VGG19 inference on GPU
+
+SPEED IMPROVEMENTS:
+- Process 32 videos at once on GPU (vs 1 at a time)
+- Batch frame extraction
+- Expected: 8-10 videos/sec (vs 1.35 videos/sec)
+- Extraction time: ~45 minutes (vs 5.5 hours)
+"""
+
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models, regularizers, callbacks
+import cv2
+import time
+from pathlib import Path
+import json
+from datetime import datetime
+from tqdm import tqdm
+
+print("="*80)
+print("🚀 HYBRID OPTIMAL - FAST GPU EXTRACTION")
+print("="*80)
+
+# GPU setup
+gpus = tf.config.list_physical_devices('GPU')
+for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
+
+tf.keras.mixed_precision.set_global_policy('mixed_float16')
+print(f"GPU: {gpus}")
+print("Mixed precision: FP16")
+print("="*80 + "\n")
+
+CONFIG = {
+    'dataset_path': '/workspace/organized_dataset',
+    'cache_dir': '/workspace/hybrid_optimal_cache',
+    'checkpoint_dir': '/workspace/hybrid_optimal_checkpoints',
+    'num_frames': 20,
+    'frame_size': (224, 224),
+
+    # FAST EXTRACTION
+    'extraction_batch_size': 32,  # Process 32 videos at once on GPU
+
+    # Architecture
+    'feature_dim': 512,
+    'lstm_units': 96,
+    'dropout_rate': 0.32,
+    'recurrent_dropout': 0.18,
+    'l2_reg': 0.003,
+
+    # Training
+    'batch_size': 96,
+    'epochs': 150,
+    'early_stopping_patience': 30,
+
+    # Augmentation
+    'augmentation_multiplier': 3,
+    'brightness_range': 0.12,
+    'noise_std': 0.008,
+    'temporal_jitter': True,
+
+    # Loss
+    'focal_gamma': 3.0,
+    'focal_alpha': 0.5,
+    'initial_lr': 0.001,
+    'warmup_epochs': 5,
+}
+
+print("📊 FAST EXTRACTION CONFIGURATION:")
+print(f"  Extraction batch size: {CONFIG['extraction_batch_size']} videos/batch")
+print(f"  Expected speed: 8-10 videos/sec (vs 1.35 current)")
+print(f"  Expected time: ~45 min extraction (vs 5.5 hours)")
+print("="*80 + "\n")
+
+# ============================================================================
+# FAST GPU-BATCHED EXTRACTION
+# ============================================================================
+
+def extract_frames_from_video(video_path, config):
+    """Extract 20 frames from a single video"""
+    try:
+        cap = cv2.VideoCapture(str(video_path))
+        if not cap.isOpened():
+            return None
+
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        if total_frames < config['num_frames']:
+            cap.release()
+            return None
+
+        indices = np.linspace(0, total_frames - 1, config['num_frames'], dtype=int)
+        frames = []
+
+        for idx in indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+            ret, frame = cap.read()
+            if not ret:
+                break
+            frame = cv2.resize(frame, config['frame_size'])
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = frame.astype(np.float32)
+            frame = tf.keras.applications.vgg19.preprocess_input(frame)
+            frames.append(frame)
+
+        cap.release()
+
+        if len(frames) < config['num_frames']:
+            return None
+
+        return np.array(frames)
+
+    except:
+        return None
+
+def extract_vgg19_features_fast(split, config):
+    """Fast GPU-batched VGG19 extraction"""
+
+    cache_file = Path(config['cache_dir']) / f'{split}_features_base.npy'
+    labels_file = Path(config['cache_dir']) / f'{split}_labels_base.npy'
+
+    if cache_file.exists() and labels_file.exists():
+        print(f"  ✅ Loading cached {split} features")
+        features = np.load(cache_file, mmap_mode='r')
+        labels = np.load(labels_file)
+        print(f"     Shape: {features.shape}")
+        return features, labels
+
+    print(f"\n  🎬 Fast GPU extraction: {split} videos...")
+
+    # Load VGG19
+    base_model = tf.keras.applications.VGG19(include_top=True, weights='imagenet')
+    feature_extractor = tf.keras.Model(
+        inputs=base_model.input,
+        outputs=base_model.get_layer('fc2').output
+    )
+    print(f"     ✅ VGG19 loaded")
+
+    # Get videos
+    split_path = Path(config['dataset_path']) / split
+    violent_videos = sorted((split_path / 'violent').glob('*.mp4'))
+    nonviolent_videos = sorted((split_path / 'nonviolent').glob('*.mp4'))
+
+    print(f"     Videos: {len(violent_videos)} violent, {len(nonviolent_videos)} non-violent")
+
+    all_videos = [(v, 1) for v in violent_videos] + [(v, 0) for v in nonviolent_videos]
+
+    all_features = []
+    all_labels = []
+    failed = 0
+
+    # Process in batches
+    batch_size = config['extraction_batch_size']
+    num_batches = (len(all_videos) + batch_size - 1) // batch_size
+
+    print(f"     Processing {num_batches} batches of {batch_size} videos...")
+
+    for batch_idx in tqdm(range(num_batches), desc=f"     {split}"):
+        start_idx = batch_idx * batch_size
+        end_idx = min(start_idx + batch_size, len(all_videos))
+        batch_videos = all_videos[start_idx:end_idx]
+
+        # Extract frames for all videos in batch (CPU)
+        batch_frames = []
+        batch_labels = []
+
+        for video_path, label in batch_videos:
+            frames = extract_frames_from_video(video_path, config)
+            if frames is not None:
+                batch_frames.append(frames)
+                batch_labels.append(label)
+            else:
+                failed += 1
+
+        if not batch_frames:
+            continue
+
+        # Process all frames through VGG19 in one GPU call
+        # Shape: (batch_size, 20, 224, 224, 3) -> flatten to (batch_size*20, 224, 224, 3)
+        batch_frames_array = np.array(batch_frames)  # (N, 20, 224, 224, 3)
+        batch_size_actual = batch_frames_array.shape[0]
+
+        # Flatten for VGG19
+        frames_flat = batch_frames_array.reshape(-1, 224, 224, 3)  # (N*20, 224, 224, 3)
+
+        # Single GPU call for entire batch
+        features_flat = feature_extractor.predict(frames_flat, verbose=0, batch_size=64)
+
+        # Reshape back
+        features = features_flat.reshape(batch_size_actual, 20, 4096)
+
+        # Normalize
+        features = features / (np.linalg.norm(features, axis=-1, keepdims=True) + 1e-8)
+
+        # Store
+        for feat, label in zip(features, batch_labels):
+            all_features.append(feat)
+            all_labels.append(label)
+
+    if failed > 0:
+        print(f"\n     ⚠️  Failed: {failed} videos")
+
+    features_array = np.array(all_features, dtype=np.float32)
+    labels_array = np.array(all_labels, dtype=np.int32)
+
+    print(f"\n     ✅ Extracted: {features_array.shape}")
+    print(f"        Violent: {labels_array.sum()}, Non-violent: {len(labels_array) - labels_array.sum()}")
+
+    # Cache
+    Path(config['cache_dir']).mkdir(parents=True, exist_ok=True)
+    np.save(cache_file, features_array)
+    np.save(labels_file, labels_array)
+    print(f"     💾 Cached: {cache_file}")
+
+    return features_array, labels_array
+
+# ============================================================================
+# AUGMENTATION
+# ============================================================================
+
+def apply_balanced_augmentation(features, config):
+    augmented = [features]
+    brightness_factor = 1.0 + np.random.uniform(-config['brightness_range'], config['brightness_range'])
+    aug1 = features * brightness_factor
+    aug1 = np.clip(aug1, features.min(), features.max())
+    augmented.append(aug1)
+
+    if config['temporal_jitter']:
+        aug2 = features.copy()
+        num_frames = features.shape[0]
+        for i in range(0, num_frames, 4):
+            end = min(i + 4, num_frames)
+            if end - i > 1 and np.random.random() > 0.5:
+                indices = np.arange(i, end)
+                np.random.shuffle(indices)
+                aug2[i:end] = aug2[indices]
+        noise = np.random.normal(0, config['noise_std'], aug2.shape)
+        aug2 = aug2 + noise
+        augmented.append(aug2)
+    else:
+        noise = np.random.normal(0, config['noise_std'], features.shape)
+        aug2 = features + noise
+        augmented.append(aug2)
+
+    return np.array(augmented)
+
+def augment_dataset(features, labels, config):
+    print(f"\n  🔄 Augmenting {config['augmentation_multiplier']}x...")
+    all_features = []
+    all_labels = []
+
+    for feat, label in tqdm(zip(features, labels), total=len(features), desc="     Augmenting"):
+        augmented = apply_balanced_augmentation(feat, config)
+        for aug_feat in augmented:
+            all_features.append(aug_feat)
+            all_labels.append(label)
+
+    return np.array(all_features, dtype=np.float32), np.array(all_labels, dtype=np.int32)
+
+# ============================================================================
+# PER-CLASS MONITORING
+# ============================================================================
+
+class PerClassAccuracyCallback(callbacks.Callback):
+    def __init__(self, validation_data):
+        super().__init__()
+        self.validation_data = validation_data
+        self.history = {'violent_accuracy': [], 'nonviolent_accuracy': [], 'accuracy_gap': []}
+
+    def on_epoch_end(self, epoch, logs=None):
+        X_val, y_val = self.validation_data
+        y_pred = self.model.predict(X_val, verbose=0)
+        y_pred_classes = (y_pred[:, 1] > 0.5).astype(int)
+        y_true_classes = y_val[:, 1].astype(int)
+
+        violent_mask = y_true_classes == 1
+        nonviolent_mask = y_true_classes == 0
+
+        violent_acc = np.mean(y_pred_classes[violent_mask] == y_true_classes[violent_mask]) if violent_mask.sum() > 0 else 0
+        nonviolent_acc = np.mean(y_pred_classes[nonviolent_mask] == y_true_classes[nonviolent_mask]) if nonviolent_mask.sum() > 0 else 0
+        gap = abs(violent_acc - nonviolent_acc)
+
+        self.history['violent_accuracy'].append(violent_acc)
+        self.history['nonviolent_accuracy'].append(nonviolent_acc)
+        self.history['accuracy_gap'].append(gap)
+
+        status = "✅ EXCELLENT" if gap < 0.08 else "✅ GOOD" if gap < 0.15 else "⚠️  WARNING" if gap < 0.25 else "🚨 CRITICAL"
+
+        print(f"\n  📊 Per-Class (Epoch {epoch+1}):")
+        print(f"    Violent:     {violent_acc*100:5.2f}%")
+        print(f"    Non-violent: {nonviolent_acc*100:5.2f}%")
+        print(f"    Gap:         {gap*100:5.2f}% {status}")
+
+        logs['violent_accuracy'] = violent_acc
+        logs['nonviolent_accuracy'] = nonviolent_acc
+
+class EnhancedFocalLoss(tf.keras.losses.Loss):
+    def __init__(self, gamma=3.0, alpha=0.5, **kwargs):
+        super().__init__(**kwargs)
+        self.gamma = gamma
+        self.alpha = alpha
+
+    def call(self, y_true, y_pred):
+        y_true = tf.cast(y_true, tf.float32)
+        y_pred = tf.cast(y_pred, tf.float32)
+        epsilon = tf.keras.backend.epsilon()
+        y_pred = tf.clip_by_value(y_pred, epsilon, 1.0 - epsilon)
+        pt = tf.where(tf.equal(y_true, 1), y_pred, 1 - y_pred)
+        focal_weight = tf.pow(1 - pt, self.gamma)
+        bce = -y_true * tf.math.log(y_pred) - (1 - y_true) * tf.math.log(1 - y_pred)
+        return tf.reduce_mean(self.alpha * focal_weight * bce)
+
+# ============================================================================
+# MODEL
+# ============================================================================
+
+def build_hybrid_optimal_model(input_shape, config):
+    inputs = layers.Input(shape=input_shape)
+    x = layers.Dense(config['feature_dim'], activation='relu')(inputs)
+    x = layers.BatchNormalization()(x)
+    x = layers.Dropout(config['dropout_rate'] * 0.5)(x)
+
+    x = layers.Bidirectional(layers.LSTM(config['lstm_units'], return_sequences=True,
+                   dropout=config['dropout_rate'], recurrent_dropout=config['recurrent_dropout'],
+                   kernel_regularizer=regularizers.l2(config['l2_reg'])))(x)
+    x = layers.BatchNormalization()(x)
+    x_residual = x
+
+    x = layers.Bidirectional(layers.LSTM(config['lstm_units'], return_sequences=True,
+                   dropout=config['dropout_rate'], recurrent_dropout=config['recurrent_dropout'],
+                   kernel_regularizer=regularizers.l2(config['l2_reg'])))(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Add()([x, x_residual])
+
+    x = layers.Bidirectional(layers.LSTM(config['lstm_units'] // 2, return_sequences=True,
+                   dropout=config['dropout_rate'], recurrent_dropout=config['recurrent_dropout'],
+                   kernel_regularizer=regularizers.l2(config['l2_reg'])))(x)
+    x = layers.BatchNormalization()(x)
+
+    attention_score = layers.Dense(1, activation='tanh')(x)
+    attention_score = layers.Flatten()(attention_score)
+    attention_weights = layers.Activation('softmax')(attention_score)
+    attention_weights_expanded = layers.RepeatVector(config['lstm_units'])(attention_weights)
+    attention_weights_expanded = layers.Permute([2, 1])(attention_weights_expanded)
+    attended = layers.Multiply()([x, attention_weights_expanded])
+    attended = layers.Lambda(lambda t: tf.reduce_sum(t, axis=1))(attended)
+
+    x = layers.Dense(128, activation='relu', kernel_regularizer=regularizers.l2(config['l2_reg']))(attended)
+    x = layers.BatchNormalization()(x)
+    x = layers.Dropout(config['dropout_rate'])(x)
+
+    x = layers.Dense(64, activation='relu', kernel_regularizer=regularizers.l2(config['l2_reg']))(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Dropout(config['dropout_rate'] * 0.8)(x)
+
+    outputs = layers.Dense(2, activation='softmax', dtype='float32')(x)
+    return models.Model(inputs=inputs, outputs=outputs)
+
+def create_lr_schedule(config):
+    def lr_schedule(epoch):
+        if epoch < config['warmup_epochs']:
+            return config['initial_lr'] * (epoch + 1) / config['warmup_epochs']
+        decay_epochs = config['epochs'] - config['warmup_epochs']
+        epoch_in_decay = epoch - config['warmup_epochs']
+        cosine_decay = 0.5 * (1 + np.cos(np.pi * epoch_in_decay / decay_epochs))
+        return config['initial_lr'] * cosine_decay + 1e-7
+    return lr_schedule
+
+class BinaryAccuracy(tf.keras.metrics.Metric):
+    def __init__(self, **kwargs):
+        super().__init__(name='binary_accuracy', dtype=tf.float32, **kwargs)
+        self.correct = self.add_weight(name='correct', initializer='zeros', dtype=tf.float32)
+        self.total = self.add_weight(name='total', initializer='zeros', dtype=tf.float32)
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_true = tf.cast(tf.reshape(y_true, [-1]), tf.int32)
+        y_pred_class = tf.cast(tf.argmax(y_pred, axis=-1), tf.int32)
+        matches = tf.cast(tf.equal(y_true, y_pred_class), tf.float32)
+        self.correct.assign_add(tf.reduce_sum(matches))
+        self.total.assign_add(tf.cast(tf.size(y_true), tf.float32))
+
+    def result(self):
+        return tf.divide(self.correct, self.total + tf.keras.backend.epsilon())
+
+    def reset_state(self):
+        self.correct.assign(0.0)
+        self.total.assign(0.0)
+
+# ============================================================================
+# MAIN
+# ============================================================================
+
+def main():
+    print("\n" + "="*80)
+    print("📥 STEP 1: FAST GPU EXTRACTION")
+    print("="*80)
+
+    extraction_start = time.time()
+    X_train_base, y_train_base = extract_vgg19_features_fast('train', CONFIG)
+    X_val, y_val = extract_vgg19_features_fast('val', CONFIG)
+    extraction_time = time.time() - extraction_start
+
+    print(f"\n⏱️  Extraction: {extraction_time/60:.1f} minutes ({extraction_time/3600:.2f} hours)")
+
+    print("\n" + "="*80)
+    print("📥 STEP 2: AUGMENTATION")
+    print("="*80)
+    X_train, y_train = augment_dataset(X_train_base, y_train_base, CONFIG)
+
+    print(f"\n📊 Dataset: Train {X_train.shape}, Val {X_val.shape}")
+
+    y_train_cat = tf.keras.utils.to_categorical(y_train, 2)
+    y_val_cat = tf.keras.utils.to_categorical(y_val, 2)
+
+    train_dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train_cat))
+    train_dataset = train_dataset.shuffle(20000).batch(CONFIG['batch_size']).prefetch(tf.data.AUTOTUNE)
+
+    val_dataset = tf.data.Dataset.from_tensor_slices((X_val, y_val_cat))
+    val_dataset = val_dataset.batch(CONFIG['batch_size']).prefetch(tf.data.AUTOTUNE)
+
+    print("\n" + "="*80)
+    print("🏗️  STEP 3: BUILD MODEL")
+    print("="*80)
+
+    model = build_hybrid_optimal_model((20, 4096), CONFIG)
+    print(f"Parameters: {model.count_params():,}")
+
+    lr_schedule = create_lr_schedule(CONFIG)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule(0), clipnorm=1.0)
+    model.compile(optimizer=optimizer, loss=EnhancedFocalLoss(gamma=CONFIG['focal_gamma']),
+                 metrics=[BinaryAccuracy()])
+
+    print("\n" + "="*80)
+    print("🚀 STEP 4: TRAINING")
+    print("="*80)
+
+    checkpoint_path = Path(CONFIG['checkpoint_dir'])
+    checkpoint_path.mkdir(parents=True, exist_ok=True)
+
+    callbacks_list = [
+        PerClassAccuracyCallback((X_val, y_val_cat)),
+        callbacks.EarlyStopping(monitor='val_binary_accuracy', patience=CONFIG['early_stopping_patience'],
+                               restore_best_weights=True, mode='max', verbose=1),
+        callbacks.ModelCheckpoint(str(checkpoint_path / 'best_{epoch:03d}_{val_binary_accuracy:.4f}.h5'),
+                                 monitor='val_binary_accuracy', save_best_only=True, mode='max', verbose=1),
+        callbacks.LearningRateScheduler(lr_schedule, verbose=1),
+        callbacks.CSVLogger(str(checkpoint_path / 'history.csv')),
+    ]
+
+    training_start = time.time()
+    history = model.fit(train_dataset, validation_data=val_dataset, epochs=CONFIG['epochs'],
+                       callbacks=callbacks_list, verbose=1)
+    training_time = time.time() - training_start
+    total_time = time.time() - extraction_start
+
+    print("\n" + "="*80)
+    print("✅ COMPLETE")
+    print("="*80)
+    print(f"⏱️  Extraction: {extraction_time/60:.1f}min | Training: {training_time/3600:.1f}h | Total: {total_time/3600:.1f}h")
+    print(f"📊 Best: {max(history.history['val_binary_accuracy'])*100:.2f}%")
+
+    per_class_cb = [cb for cb in callbacks_list if isinstance(cb, PerClassAccuracyCallback)][0]
+    final_violent = per_class_cb.history['violent_accuracy'][-1]
+    final_nonviolent = per_class_cb.history['nonviolent_accuracy'][-1]
+
+    print(f"\n🎯 FINAL: Violent {final_violent*100:.2f}%, Non-violent {final_nonviolent*100:.2f}%")
+
+    if final_violent > 0.88:
+        print(f"🎉 SUCCESS! Expected TTA: 90-92%")
+
+if __name__ == "__main__":
+    main()

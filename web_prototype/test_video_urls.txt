@@ -1,0 +1,30 @@
+# Sample Test Videos for Violence Detection
+
+## Non-Violent Test Videos (Expected: NON-VIOLENT)
+https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4
+https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4
+
+## For Real Testing
+Use your own videos or download from:
+- YouTube Shorts (non-violent: cooking, sports, tutorials)
+- Sample security footage (non-violent)
+- Test violent scenes (movies, fights) for validation
+
+## How to Test
+
+### Using Web Interface:
+1. Go to https://vision.nexaratech.io
+2. Drag and drop your video
+3. Click "Analyze Video"
+4. View results
+
+### Using cURL:
+curl -X POST https://vision.nexaratech.io/api/predict \
+  -F "file=@your_video.mp4"
+
+### Using Python:
+import requests
+url = "https://vision.nexaratech.io/api/predict"
+files = {"file": open("your_video.mp4", "rb")}
+response = requests.post(url, files=files)
+print(response.json())

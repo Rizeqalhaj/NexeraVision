@@ -1,0 +1,20 @@
+FROM python:3.10-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install TensorFlow 2.12 (intermediate version for conversion)
+RUN pip install --no-cache-dir \
+    tensorflow==2.12.0 \
+    h5py==3.7.0 \
+    numpy==1.23.5
+
+# Copy conversion script
+COPY convert_models.py /app/
+
+CMD ["python3", "convert_models.py"]

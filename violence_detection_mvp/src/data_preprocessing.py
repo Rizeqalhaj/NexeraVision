@@ -68,8 +68,13 @@ class VideoFrameExtractor:
         """
         try:
             vidcap = cv2.VideoCapture(str(video_path))
+
+            # CRITICAL FIX: Set timeout for corrupted videos
+            vidcap.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000)  # 5 second timeout
+            vidcap.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 3000)  # 3 second read timeout
+
             if not vidcap.isOpened():
-                logger.error(f"Could not open video: {video_path}")
+                logger.warning(f"Could not open video (skipping): {video_path}")
                 return None
 
             # Get video properties
