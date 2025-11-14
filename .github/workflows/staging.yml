@@ -147,7 +147,7 @@ jobs:
 
             # Create nginx config for new stack
             echo "⚙️  Configuring nginx..."
-            sudo tee /etc/nginx/sites-available/violence-detection-staging > /dev/null << 'NGINXEOF'
+            sudo bash -c 'cat > /etc/nginx/sites-available/violence-detection-staging' <<EOF
 server {
     listen 80;
     server_name stagingvision.nexaratech.io;
@@ -157,26 +157,26 @@ server {
     location / {
         proxy_pass http://localhost:3001;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
     # NestJS Backend API
     location /api {
         proxy_pass http://localhost:3002;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_connect_timeout 600;
         proxy_send_timeout 600;
         proxy_read_timeout 600;
@@ -186,7 +186,7 @@ server {
     # ML Service (internal - not exposed publicly)
     # Accessible only via backend at http://localhost:8003
 }
-NGINXEOF
+EOF
 
             sudo ln -sf /etc/nginx/sites-available/violence-detection-staging /etc/nginx/sites-enabled/
             sudo nginx -t && sudo systemctl reload nginx
