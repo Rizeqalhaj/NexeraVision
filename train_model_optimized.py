@@ -4,6 +4,7 @@ NexaraVision Training Script (OPTIMIZED)
 Uses pre-extracted frames for 10x faster training
 """
 
+import os
 import tensorflow as tf
 import numpy as np
 from pathlib import Path
@@ -12,6 +13,45 @@ from datetime import datetime
 import sys
 
 from model_architecture import ViolenceDetectionModel
+
+# GPU Configuration for Multi-GPU Systems
+def setup_gpu():
+    """Configure GPU for optimal training"""
+
+    gpus = tf.config.list_physical_devices('GPU')
+
+    if gpus:
+        print("=" * 80)
+        print("🎮 GPU Configuration")
+        print("=" * 80)
+        print(f"Detected {len(gpus)} GPU(s):")
+        for i, gpu in enumerate(gpus):
+            print(f"  GPU {i}: {gpu.name}")
+        print()
+
+        try:
+            # Enable memory growth (prevents TensorFlow from allocating all VRAM)
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            print("✅ Memory growth enabled (dynamic allocation)")
+
+            # Use only first GPU to avoid multi-GPU configuration issues
+            # For distributed training, comment out this line
+            tf.config.set_visible_devices(gpus[0], 'GPU')
+            print("✅ Using GPU 0 only (single-GPU mode)")
+
+            logical_gpus = tf.config.list_logical_devices('GPU')
+            print(f"✅ Logical GPUs: {len(logical_gpus)}")
+            print("=" * 80)
+            print()
+
+        except RuntimeError as e:
+            print(f"⚠️  GPU setup error: {e}")
+            print("=" * 80)
+            print()
+
+# Setup GPU before importing model
+setup_gpu()
 
 class OptimizedDataGenerator(tf.keras.utils.Sequence):
     """Fast data generator using pre-extracted frames"""
