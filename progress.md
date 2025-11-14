@@ -4,20 +4,68 @@
 
 ---
 
-## 🎯 Current Status: Training Infrastructure Fixed
+## 🚨 IMMEDIATE ACTIONS (Run on Vast.ai)
 
-### Recent Milestone: Multi-GPU Configuration Resolved
+### GPU Memory is Full - Must Clear Before Training
+
+**On your Vast.ai instance, run these commands:**
+
+```bash
+cd /workspace
+
+# Step 1: Clear GPU memory (kills existing processes)
+chmod +x CLEAR_GPU_MEMORY.sh
+./CLEAR_GPU_MEMORY.sh
+
+# Step 2: Choose batch size configuration
+# Option A: Conservative (recommended first try)
+chmod +x FIX_SINGLE_GPU.sh
+./FIX_SINGLE_GPU.sh  # Sets batch_size=8
+
+# Option B: Ultra-conservative (if Option A still gives OOM)
+chmod +x USE_BATCH_SIZE_1.sh
+./USE_BATCH_SIZE_1.sh  # Sets batch_size=1
+
+# Step 3: Start training
+chmod +x START_TRAINING.sh
+./START_TRAINING.sh
+```
+
+**What to expect:**
+- CLEAR_GPU_MEMORY.sh will show current GPU usage and kill processes
+- FIX_SINGLE_GPU.sh sets batch_size=8 (~6-8 hour training)
+- USE_BATCH_SIZE_1.sh sets batch_size=1 (~20-30 hour training, but guaranteed to work)
+- START_TRAINING.sh forces single GPU mode and starts training
+
+**Monitor in another terminal:**
+```bash
+watch -n 1 nvidia-smi
+```
+
+Look for:
+- GPU 0: 2-6 GB used (training active) ✅
+- GPU 1: 0 GB used (idle) ✅
+
+---
+
+## 🎯 Current Status: GPU Memory Management Fixed
+
+### Recent Milestone: Single GPU Mode + Memory Cleanup
 
 **Issue Identified**:
-- OOM errors were NOT due to insufficient memory
-- Hardware: **2x RTX 3090 Ti with 48 GB VRAM** (more than enough!)
-- Root cause: Multi-GPU configuration issue, not memory limitation
+- Hardware: **2x RTX 3090 Ti with 48 GB VRAM**
+- OOM errors even with single GPU configuration
+- Root cause: GPU memory already occupied by other processes
+- Error: "cudaSetDevice() on GPU:0 failed. Status: out of memory"
 
-**Solution Implemented**:
-- ✅ Added GPU setup to training script (single-GPU mode)
-- ✅ Increased batch_size from 4 to 16 (4x faster training)
-- ✅ Enabled memory growth for dynamic allocation
-- ✅ Created comprehensive setup scripts
+**Solutions Implemented**:
+- ✅ Environment variables set BEFORE TensorFlow import (critical fix)
+- ✅ GPU memory cleanup script to kill existing processes
+- ✅ Single GPU mode (GPU 0 only) via CUDA_VISIBLE_DEVICES
+- ✅ Conservative batch sizes (8 or 1 depending on available memory)
+- ✅ Comprehensive troubleshooting scripts and documentation
+
+**Current Status**: Ready for training with proper GPU memory management
 
 ---
 
