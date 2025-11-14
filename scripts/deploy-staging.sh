@@ -16,7 +16,7 @@ echo "=========================================="
 SERVER_IP="${SERVER_IP:-31.57.166.18}"
 SSH_USER="${SSH_USER:-admin}"
 STAGING_PORT=8001
-STAGING_DOMAIN="stagingvision.nexara.io"
+STAGING_DOMAIN="stagingvision.nexaratech.io"
 
 # Colors
 GREEN='\033[0;32m'

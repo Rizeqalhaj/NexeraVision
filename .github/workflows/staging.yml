@@ -81,7 +81,7 @@ jobs:
               echo "Setting up nginx for staging..."
               echo 'server {
                 listen 80;
-                server_name stagingvision.nexara.io;
+                server_name stagingvision.nexaratech.io;
                 client_max_body_size 100M;
                 location / {
                     proxy_pass http://localhost:8001;
@@ -112,7 +112,7 @@ jobs:
               echo "=========================================="
               echo "✓ Staging Deployment Successful!"
               echo "=========================================="
-              echo "Staging URL: http://stagingvision.nexara.io"
+              echo "Staging URL: http://stagingvision.nexaratech.io"
               echo "Container: violence-detection-staging"
               echo "Port: 8001"
             else
@@ -126,7 +126,7 @@ jobs:
         if: success()
         run: |
           echo "✓ Successfully deployed to staging!"
-          echo "Staging URL: http://stagingvision.nexara.io"
+          echo "Staging URL: http://stagingvision.nexaratech.io"
 
       - name: Notify Failure
         if: failure()
