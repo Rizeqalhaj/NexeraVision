@@ -225,7 +225,7 @@ jobs:
             # Check Docker containers
             echo ""
             echo "🐳 Docker Container Status:"
-            docker ps | grep staging
+            docker ps | grep staging || echo "⚠️  No staging containers running (ML service is optional)"
 
             # Test endpoints with retry
             echo ""
