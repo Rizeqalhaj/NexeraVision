@@ -525,6 +525,14 @@ async def root():
         return html_path.read_text()
     return "<h1>Nexara Vision Prototype</h1><p>API is running</p>"
 
+@app.get("/dashboard.html", response_class=HTMLResponse)
+async def dashboard():
+    """Serve dashboard interface"""
+    html_path = Path(__file__).parent.parent / "frontend" / "dashboard.html"
+    if html_path.exists():
+        return html_path.read_text()
+    return "<h1>Dashboard not found</h1>"
+
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint"""
