@@ -76,10 +76,11 @@ jobs:
               --restart unless-stopped \
               violence-detection:staging
 
-            # Setup nginx for staging if not exists
-            if [ ! -f "/etc/nginx/sites-available/violence-detection-staging" ]; then
-              echo "Setting up nginx for staging..."
-              echo 'server {
+            # Setup nginx for staging (always recreate to ensure correct domain)
+            echo "Setting up nginx for staging..."
+            sudo rm -f /etc/nginx/sites-available/violence-detection-staging
+            sudo rm -f /etc/nginx/sites-enabled/violence-detection-staging
+            echo 'server {
                 listen 80;
                 server_name stagingvision.nexaratech.io;
                 client_max_body_size 100M;
@@ -99,9 +100,8 @@ jobs:
                     send_timeout 600;
                 }
             }' | sudo tee /etc/nginx/sites-available/violence-detection-staging > /dev/null
-              sudo ln -sf /etc/nginx/sites-available/violence-detection-staging /etc/nginx/sites-enabled/
-              sudo nginx -t && sudo systemctl reload nginx
-            fi
+            sudo ln -sf /etc/nginx/sites-available/violence-detection-staging /etc/nginx/sites-enabled/
+            sudo nginx -t && sudo systemctl reload nginx
 
             # Wait for container to be healthy
             echo "Waiting for container to be healthy..."
