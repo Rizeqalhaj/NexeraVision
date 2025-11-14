@@ -15,7 +15,7 @@ echo "=========================================="
 # Configuration
 SERVER_IP="${SERVER_IP:-31.57.166.18}"
 SSH_USER="${SSH_USER:-admin}"
-PRODUCTION_PORT=8000
+PRODUCTION_PORT=8002
 PRODUCTION_DOMAIN="vision.nexaratech.io"
 
 # Colors

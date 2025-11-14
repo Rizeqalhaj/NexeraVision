@@ -73,11 +73,11 @@ jobs:
             echo "Building Docker image..."
             docker build -t violence-detection:latest -t violence-detection:production .
 
-            # Run production container on port 8000
+            # Run production container on port 8002
             echo "Starting production container..."
             docker run -d \
               --name violence-detection \
-              -p 8000:8000 \
+              -p 8002:8000 \
               -v /home/admin/Downloads/best_model.h5:/home/admin/Downloads/best_model.h5:ro \
               --restart unless-stopped \
               violence-detection:production
@@ -90,7 +90,7 @@ jobs:
                 server_name vision.nexaratech.io;
                 client_max_body_size 100M;
                 location / {
-                    proxy_pass http://localhost:8000;
+                    proxy_pass http://localhost:8002;
                     proxy_http_version 1.1;
                     proxy_set_header Upgrade \$http_upgrade;
                     proxy_set_header Connection "upgrade";
@@ -116,7 +116,7 @@ jobs:
             # Health check
             echo "Performing health check..."
             for i in {1..30}; do
-              if curl -f http://localhost:8000/ > /dev/null 2>&1; then
+              if curl -f http://localhost:8002/ > /dev/null 2>&1; then
                 echo "✓ Health check passed"
                 break
               fi
@@ -135,7 +135,7 @@ jobs:
               echo "=========================================="
               echo "Production URL: https://vision.nexaratech.io"
               echo "Container: violence-detection"
-              echo "Port: 8000"
+              echo "Port: 8002"
 
               # Clean up old images (keep last 3 backups)
               echo "Cleaning up old backup images..."
@@ -151,7 +151,7 @@ jobs:
                 echo "Rolling back to $BACKUP_IMAGE"
                 docker run -d \
                   --name violence-detection \
-                  -p 8000:8000 \
+                  -p 8002:8000 \
                   -v /home/admin/Downloads/best_model.h5:/home/admin/Downloads/best_model.h5:ro \
                   --restart unless-stopped \
                   $BACKUP_IMAGE
