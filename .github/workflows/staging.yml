@@ -112,6 +112,7 @@ jobs:
 
             # Run Prisma migrations
             echo "🗄️  Running database migrations..."
+            set -a && source .env && set +a
             npx prisma generate
             npx prisma migrate deploy 2>/dev/null || echo "⚠️  Migration skipped (may not be needed)"
 
