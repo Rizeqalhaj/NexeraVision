@@ -30,7 +30,7 @@ export default function RootLayout({
       >
         <div className="flex h-screen overflow-hidden">
           <Sidebar />
-          <main className="flex-1 overflow-y-auto bg-[var(--background)]">
+          <main className="flex-1 overflow-y-auto">
             {children}
           </main>
         </div>

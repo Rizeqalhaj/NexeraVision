@@ -37,7 +37,7 @@
 }
 
 body {
-  background: linear-gradient(135deg, #000000, #0a1929, #1a2942);
+  background: linear-gradient(135deg, #000000 0%, #0a1929 25%, #1a2942 50%, #0a1929 75%, #000000 100%);
   background-attachment: fixed;
   color: var(--foreground);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;

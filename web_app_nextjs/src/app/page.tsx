@@ -1,167 +1,338 @@
+'use client';
+
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, Camera, AlertTriangle, CheckCircle, Activity, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Camera, MessageSquare, TrendingUp, CheckCircle2, Video, Play, X } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
+  const [showCameraGrid, setShowCameraGrid] = useState(false);
   const stats = [
     {
-      title: 'Total Cameras',
-      value: '24',
+      title: 'Active Cameras',
+      value: '5',
+      subtitle: 'All',
       icon: Camera,
-      trend: '+2 this week',
-      color: 'text-blue-500',
+      iconColor: 'text-green-500',
+      bgColor: 'bg-green-500/10',
     },
     {
-      title: 'Active Detections',
-      value: '3',
-      icon: Activity,
-      trend: 'Live monitoring',
-      color: 'text-green-500',
+      title: "Today's Incidents",
+      value: '12',
+      subtitle: '+3',
+      icon: TrendingUp,
+      iconColor: 'text-yellow-500',
+      bgColor: 'bg-yellow-500/10',
     },
     {
-      title: 'Alerts Today',
-      value: '7',
-      icon: AlertTriangle,
-      trend: '-12% from yesterday',
-      color: 'text-orange-500',
+      title: 'False Positive Rate',
+      value: '4.2%',
+      icon: CheckCircle2,
+      iconColor: 'text-blue-500',
+      bgColor: 'bg-blue-500/10',
     },
     {
-      title: 'Resolved',
-      value: '142',
-      icon: CheckCircle,
-      trend: 'This month',
-      color: 'text-purple-500',
+      title: 'System Uptime',
+      value: '99.8%',
+      icon: CheckCircle2,
+      iconColor: 'text-green-500',
+      bgColor: 'bg-green-500/10',
     },
   ];
 
-  const recentActivity = [
-    { time: '2 min ago', event: 'Violence detected - Camera 12', status: 'warning' },
-    { time: '15 min ago', event: 'All cameras operational', status: 'success' },
-    { time: '1 hour ago', event: 'Alert resolved - Camera 8', status: 'success' },
-    { time: '3 hours ago', event: 'New camera added - Camera 24', status: 'info' },
+  const recentIncidents = [
+    {
+      id: 1,
+      camera: 'Camera 12 - Parking Lot',
+      time: '2 mins ago',
+      type: 'Violence Detected',
+      confidence: '94%',
+      status: 'danger',
+    },
+    {
+      id: 2,
+      camera: 'Camera 45 - Entrance',
+      time: '15 mins ago',
+      type: 'Possible Incident',
+      confidence: '78%',
+      status: 'warning',
+    },
+  ];
+
+  // Generate data for last 24 hours with peak at 18:00
+  const generateChartData = () => {
+    const data = [];
+    const now = new Date();
+
+    for (let i = 23; i >= 0; i--) {
+      const hour = new Date(now.getTime() - i * 60 * 60 * 1000);
+      const hourValue = hour.getHours();
+
+      // Create peak at 18:00 (6 PM)
+      let incidents;
+      if (hourValue === 18) {
+        incidents = 8; // Peak
+      } else if (hourValue === 17 || hourValue === 19) {
+        incidents = 5; // Around peak
+      } else if (hourValue >= 9 && hourValue <= 21) {
+        incidents = Math.floor(Math.random() * 3) + 2; // Daytime activity
+      } else {
+        incidents = Math.floor(Math.random() * 2); // Night time low activity
+      }
+
+      data.push({
+        time: `${hourValue.toString().padStart(2, '0')}:00`,
+        incidents: incidents,
+      });
+    }
+
+    return data;
+  };
+
+  const chartData = generateChartData();
+
+  // Camera feed data - using CCTV footage
+  const cameraFeeds = [
+    { id: 1, name: 'Camera 1 - Entrance', status: 'online', videoUrl: '/videos/cameras/14698511_1920_1080_60fps.mp4' },
+    { id: 2, name: 'Camera 2 - Parking Lot', status: 'online', videoUrl: '/videos/cameras/New York 1956 42nd St WebCam - LIVE.mp4' },
+    { id: 3, name: 'Camera 3 - Lobby', status: 'online', videoUrl: '/videos/cameras/5108891-uhd_3840_2160_30fps.mp4' },
+    { id: 4, name: 'Camera 4 - Hallway', status: 'online', videoUrl: '/videos/cameras/2697636-uhd_1920_1440_30fps.mp4' },
+    { id: 5, name: 'Camera 5 - Exit', status: 'online', videoUrl: '/videos/cameras/5977704-hd_1366_586_30fps.mp4' },
   ];
 
   return (
     <div className="p-8">
+      {/* Camera Grid Modal */}
+      {showCameraGrid && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-lg w-full max-w-7xl max-h-[90vh] overflow-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-[var(--text-primary)]">Live Camera Feeds</h2>
+                <Button
+                  onClick={() => setShowCameraGrid(false)}
+                  variant="outline"
+                  className="border-[var(--border)] text-[var(--text-primary)] hover:bg-red-500/20"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {cameraFeeds.map((camera) => (
+                  <div key={camera.id} className="border border-[var(--border)] rounded-lg overflow-hidden">
+                    <div className="bg-black aspect-video relative">
+                      <video
+                        className="w-full h-full object-cover"
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                      >
+                        <source src={camera.videoUrl} type="video/mp4" />
+                        Your browser does not support the video tag.
+                      </video>
+                      <div className="absolute top-2 left-2 bg-black/70 px-3 py-1 rounded-full flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        <span className="text-xs text-white font-medium">LIVE</span>
+                      </div>
+                    </div>
+                    <div className="p-3 bg-[var(--card-bg)]">
+                      <p className="text-sm font-semibold text-[var(--text-primary)]">{camera.name}</p>
+                      <p className="text-xs text-[var(--text-secondary)] mt-1">Status: {camera.status}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">
-          Dashboard Overview
-        </h1>
-        <p className="text-[var(--text-secondary)]">
-          Monitor your violence detection system in real-time
-        </p>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">
+            Dashboard
+          </h1>
+        </div>
+        <Button className="bg-[var(--accent-blue)] hover:bg-blue-600 text-white px-6 py-6 text-lg font-semibold shadow-lg shadow-blue-500/30">
+          <MessageSquare className="h-6 w-6 mr-3" />
+          AI Assistant
+        </Button>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {stats.map((stat) => {
+        {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <Card key={stat.title} className="border-[var(--border)] bg-[var(--card-bg)]">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-[var(--text-secondary)]">
-                  {stat.title}
-                </CardTitle>
-                <Icon className={`h-4 w-4 ${stat.color}`} />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-[var(--text-primary)]">
-                  {stat.value}
+            <Card key={index} className="border-[var(--border)] bg-[var(--card-bg)]">
+              <CardContent className="pt-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <p className="text-sm text-[var(--text-secondary)] mb-2">
+                      {stat.title}
+                    </p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold text-[var(--text-primary)]">
+                        {stat.value}
+                      </span>
+                      {stat.subtitle && (
+                        <span className="text-sm text-[var(--text-secondary)]">
+                          {stat.subtitle}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className={`${stat.bgColor} p-3 rounded-lg`}>
+                    <Icon className={`h-5 w-5 ${stat.iconColor}`} />
+                  </div>
                 </div>
-                <p className="text-xs text-[var(--text-secondary)] mt-1">
-                  {stat.trend}
-                </p>
               </CardContent>
             </Card>
           );
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Activity */}
-        <Card className="border-[var(--border)] bg-[var(--card-bg)]">
-          <CardHeader>
-            <CardTitle className="text-[var(--text-primary)] flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Recent Activity
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-start gap-3 pb-3 border-b border-[var(--border)] last:border-0">
-                  <div className={`w-2 h-2 rounded-full mt-2 ${
-                    activity.status === 'warning' ? 'bg-orange-500' :
-                    activity.status === 'success' ? 'bg-green-500' :
-                    'bg-blue-500'
-                  }`} />
-                  <div className="flex-1">
-                    <p className="text-sm text-[var(--text-primary)]">
-                      {activity.event}
+      {/* Recent Incidents */}
+      <Card className="border-[var(--border)] bg-[var(--card-bg)] mb-8">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-xl font-bold text-[var(--text-primary)]">Recent Incidents</CardTitle>
+          <Button variant="link" className="text-[var(--accent-blue)] p-0 text-base font-medium">
+            [View All]
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {recentIncidents.map((incident) => (
+              <div
+                key={incident.id}
+                className="border border-[var(--border)] rounded-lg p-4"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className={`w-3 h-3 rounded-full mt-1.5 ${
+                      incident.status === 'danger' ? 'bg-red-500' : 'bg-yellow-500'
+                    }`} />
+                    <div>
+                      <p className="text-base font-semibold text-[var(--text-primary)]">
+                        {incident.camera}
+                      </p>
+                      <p className="text-sm text-[var(--text-secondary)] mt-1">
+                        {incident.time}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-[var(--text-primary)]">
+                      {incident.type}
                     </p>
-                    <p className="text-xs text-[var(--text-secondary)] mt-1">
-                      {activity.time}
+                    <p className="text-base font-semibold text-[var(--text-primary)] mt-1">
+                      Confidence: {incident.confidence}
                     </p>
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Stats */}
-        <Card className="border-[var(--border)] bg-[var(--card-bg)]">
-          <CardHeader>
-            <CardTitle className="text-[var(--text-primary)] flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              System Performance
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm text-[var(--text-secondary)]">Detection Accuracy</span>
-                  <span className="text-sm font-medium text-[var(--text-primary)]">94.5%</span>
-                </div>
-                <div className="w-full bg-[var(--border)] rounded-full h-2">
-                  <div className="bg-green-500 h-2 rounded-full" style={{ width: '94.5%' }} />
+                <div className="mt-4 flex gap-3">
+                  <Button
+                    size="sm"
+                    className="bg-[#1a2942] hover:bg-[#0a1929] border border-[var(--accent-blue)] text-[var(--accent-blue)] font-medium px-4 py-2 shadow-sm hover:shadow-blue-500/30"
+                  >
+                    View
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-[#1a2942] hover:bg-[#0a1929] border border-[var(--success-green)] text-[var(--success-green)] font-medium px-4 py-2 shadow-sm hover:shadow-green-500/30"
+                  >
+                    Mark Safe
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-[#1a2942] hover:bg-[#0a1929] border border-[var(--accent-blue)]/70 text-[var(--text-primary)] font-medium px-4 py-2 shadow-sm hover:shadow-blue-500/20"
+                  >
+                    Clip
+                  </Button>
                 </div>
               </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm text-[var(--text-secondary)]">Camera Uptime</span>
-                  <span className="text-sm font-medium text-[var(--text-primary)]">99.2%</span>
-                </div>
-                <div className="w-full bg-[var(--border)] rounded-full h-2">
-                  <div className="bg-blue-500 h-2 rounded-full" style={{ width: '99.2%' }} />
-                </div>
-              </div>
+      {/* System Performance */}
+      <Card className="border-[var(--border)] bg-[var(--card-bg)] mb-8">
+        <CardHeader>
+          <CardTitle className="text-[var(--text-primary)]">
+            System Performance (Last 24 Hours)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(59, 130, 246, 0.2)" />
+                <XAxis
+                  dataKey="time"
+                  stroke="#94a3b8"
+                  tick={{ fill: '#94a3b8', fontSize: 12 }}
+                  interval={2}
+                />
+                <YAxis
+                  stroke="#94a3b8"
+                  tick={{ fill: '#94a3b8', fontSize: 12 }}
+                  label={{ value: 'Incidents', angle: -90, position: 'insideLeft', fill: '#94a3b8' }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1e293b',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    borderRadius: '8px',
+                    color: '#e2e8f0',
+                    fontSize: '14px',
+                    padding: '12px'
+                  }}
+                  labelStyle={{ color: '#e2e8f0', fontSize: '14px', fontWeight: '600' }}
+                  itemStyle={{ color: '#e2e8f0', fontSize: '14px' }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="incidents"
+                  stroke="#60a5fa"
+                  strokeWidth={2}
+                  dot={{ fill: '#60a5fa', r: 4 }}
+                  activeDot={{ r: 6, fill: '#3b82f6' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
 
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm text-[var(--text-secondary)]">Response Time</span>
-                  <span className="text-sm font-medium text-[var(--text-primary)]">0.3s avg</span>
-                </div>
-                <div className="w-full bg-[var(--border)] rounded-full h-2">
-                  <div className="bg-purple-500 h-2 rounded-full" style={{ width: '85%' }} />
-                </div>
+      {/* Camera Status Grid */}
+      <Card className="border-[var(--border)] bg-[var(--card-bg)]">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-[var(--text-primary)]">Camera Status Grid</CardTitle>
+          <Button
+            className="bg-[var(--accent-blue)] hover:bg-blue-600 text-white px-4 py-2 font-semibold shadow-md shadow-blue-500/30"
+            onClick={() => setShowCameraGrid(true)}
+          >
+            <Video className="h-4 w-4 mr-2" />
+            Expand
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2 items-center">
+            {[...Array(5)].map((_, i) => (
+              <div
+                key={i}
+                className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center"
+              >
+                <div className="w-6 h-6 rounded-full bg-green-600" />
               </div>
-
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm text-[var(--text-secondary)]">Storage Used</span>
-                  <span className="text-sm font-medium text-[var(--text-primary)]">67%</span>
-                </div>
-                <div className="w-full bg-[var(--border)] rounded-full h-2">
-                  <div className="bg-orange-500 h-2 rounded-full" style={{ width: '67%' }} />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
