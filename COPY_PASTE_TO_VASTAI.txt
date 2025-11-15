@@ -1,0 +1,107 @@
+##############################################################################
+# NexaraVision Quick Setup - Copy & Paste into Vast.ai Web Terminal
+##############################################################################
+#
+# INSTRUCTIONS:
+# 1. Go to https://cloud.vast.ai/instances/
+# 2. Click "Connect" → "Open SSH Terminal in Browser"
+# 3. Copy and paste SECTION 1 below, press Enter, wait for completion
+# 4. Copy and paste SECTION 2 below, press Enter
+# 5. Copy and paste SECTION 3 below, press Enter to start downloading
+#
+##############################################################################
+
+# ============================================================================
+# SECTION 1: Install Dependencies (takes 3-5 minutes)
+# ============================================================================
+
+cd / && mkdir -p /workspace && cd /workspace && \
+apt-get update -qq && apt-get upgrade -y -qq && \
+apt-get install -y python3-pip git wget curl unzip ffmpeg && \
+pip3 install --quiet tensorflow opencv-python numpy pandas scikit-learn matplotlib kaggle tqdm && \
+mkdir -p datasets/{tier1,tier2,tier3,processed} models logs && \
+mkdir -p ~/.kaggle && \
+echo '{"username":"issadalu","key":"5aabafacbfdefea1bf4f2171d98cc52b"}' > ~/.kaggle/kaggle.json && \
+chmod 600 ~/.kaggle/kaggle.json && \
+echo "" && \
+echo "✅ Setup complete!" && \
+nvidia-smi --query-gpu=name,memory.total --format=csv,noheader && \
+python3 -c "import tensorflow as tf; print(f'✅ TensorFlow GPUs: {len(tf.config.list_physical_devices(\"GPU\"))}')"
+
+
+# ============================================================================
+# SECTION 2: Create Download Script
+# ============================================================================
+
+cat > /workspace/download.py << 'EOF'
+#!/usr/bin/env python3
+import subprocess, os
+from pathlib import Path
+
+datasets = [
+    ('vulamnguyen/rwf2000', 'tier1/RWF2000', 'RWF-2000 (2,000 videos)'),
+    ('odins0n/ucf-crime-dataset', 'tier1/UCF_Crime', 'UCF-Crime (1,900 videos)'),
+    ('toluwaniaremu/smartcity-cctv-violence-detection-dataset-scvd', 'tier1/SCVD', 'SmartCity-CCTV (4,000 videos)'),
+    ('mohamedmustafa/real-life-violence-situations-dataset', 'tier1/RealLife', 'Real-Life Violence (2,000 videos)'),
+    ('arnab91/eavdd-violence', 'tier1/EAVDD', 'EAVDD (1,500 videos)'),
+]
+
+total = len(datasets)
+for i, (kaggle_id, path, name) in enumerate(datasets, 1):
+    print(f"\n{'='*80}")
+    print(f"[{i}/{total}] {name}")
+    print(f"{'='*80}")
+
+    out = Path(f"/workspace/datasets/{path}")
+    out.mkdir(parents=True, exist_ok=True)
+
+    cmd = ['kaggle', 'datasets', 'download', '-d', kaggle_id, '-p', str(out), '--unzip']
+
+    try:
+        subprocess.run(cmd, check=True)
+        print(f"✅ Downloaded!")
+    except Exception as e:
+        print(f"❌ Failed: {e}")
+
+print("\n" + "="*80)
+print("✅ DOWNLOAD COMPLETE!")
+print("="*80)
+
+# Count videos
+total_videos = 0
+for ext in ['*.mp4', '*.avi', '*.mkv', '*.webm']:
+    total_videos += len(list(Path('/workspace/datasets').rglob(ext)))
+
+print(f"📹 Total Videos: {total_videos:,}")
+os.system("du -sh /workspace/datasets")
+EOF
+
+chmod +x /workspace/download.py && echo "✅ Download script created!"
+
+
+# ============================================================================
+# SECTION 3: Start Downloading Datasets (takes 10-30 minutes)
+# ============================================================================
+
+python3 /workspace/download.py
+
+
+# ============================================================================
+# MONITORING COMMANDS (use these in a separate terminal tab)
+# ============================================================================
+
+# Watch download progress:
+# watch -n 5 'du -sh /workspace/datasets/*'
+
+# Count downloaded videos:
+# find /workspace/datasets -name "*.mp4" | wc -l
+
+# Check disk space:
+# df -h /workspace
+
+##############################################################################
+# Expected Results:
+# - Tier 1: 11,400+ videos
+# - Total Size: ~21 GB
+# - Download Time: 10-30 minutes (depending on connection speed)
+##############################################################################

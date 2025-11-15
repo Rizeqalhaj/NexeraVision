@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  ml-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexara-ml-service
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount trained model
+      - ../downloaded_models/ultimate_best_model.h5:/app/models/ultimate_best_model.h5:ro
+      # Mount app code for development (remove in production)
+      - ./app:/app/app
+    environment:
+      - MODEL_PATH=/app/models/ultimate_best_model.h5
+      - DEBUG=false
+      - GPU_MEMORY_FRACTION=0.8
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Optional: Redis for job queuing
+  redis:
+    image: redis:7-alpine
+    container_name: nexara-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:

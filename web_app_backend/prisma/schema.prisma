@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cameras   Camera[]
+  incidents Incident[]
+
+  @@map("users")
+}
+
+model Camera {
+  id          String   @id @default(uuid())
+  name        String
+  userId      String   @map("user_id")
+  gridConfig  Json?    @map("grid_config")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incidents   Incident[]
+
+  @@index([userId])
+  @@map("cameras")
+}
+
+model Incident {
+  id              String   @id @default(uuid())
+  cameraId        String   @map("camera_id")
+  userId          String   @map("user_id")
+  timestamp       DateTime @default(now())
+  violenceProb    Float    @map("violence_probability")
+  confidence      String
+  videoClipUrl    String?  @map("video_clip_url")
+  thumbnailUrl    String?  @map("thumbnail_url")
+  reviewed        Boolean  @default(false)
+  falsePositive   Boolean  @default(false) @map("false_positive")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  camera          Camera   @relation(fields: [cameraId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([cameraId])
+  @@index([userId])
+  @@index([timestamp])
+  @@index([violenceProb])
+  @@map("incidents")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
