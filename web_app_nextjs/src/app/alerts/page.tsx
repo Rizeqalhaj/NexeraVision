@@ -112,7 +112,7 @@ export default function AlertsPage() {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 md:p-8">
       {/* Detail Modal */}
       {showDetailModal && selectedAlert && (
         <div
@@ -183,23 +183,23 @@ export default function AlertsPage() {
       )}
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] mb-2">
             Alerts & Notifications
           </h1>
-          <p className="text-[var(--text-secondary)]">
+          <p className="text-sm sm:text-base text-[var(--text-secondary)]">
             Monitor and manage security alerts in real-time
           </p>
         </div>
-        <Button className="gap-2 bg-[#1a2942] hover:bg-[#0a1929] text-[var(--text-primary)] font-semibold border border-[var(--accent-blue)] shadow-md shadow-blue-500/20">
+        <Button className="w-full sm:w-auto gap-2 bg-[#1a2942] hover:bg-[#0a1929] text-[var(--text-primary)] font-semibold border border-[var(--accent-blue)] shadow-md shadow-blue-500/20">
           <Filter className="h-4 w-4" />
           Filter Alerts
         </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
         <Card className="border-[var(--border)] bg-[var(--card-bg)]">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-[var(--text-secondary)]">
@@ -293,7 +293,7 @@ export default function AlertsPage() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2 mt-3 pt-3 border-t border-[var(--border)]">
+                <div className="flex flex-col sm:flex-row gap-2 mt-3 pt-3 border-t border-[var(--border)]">
                   <Button
                     size="sm"
                     className="bg-[#1a2942] hover:bg-[#0a1929] text-[var(--text-primary)] font-semibold border border-[var(--accent-blue)] shadow-sm shadow-blue-500/20"

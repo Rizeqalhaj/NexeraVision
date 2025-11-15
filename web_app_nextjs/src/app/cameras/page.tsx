@@ -17,25 +17,25 @@ export default function CamerasPage() {
   ];
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 md:p-8">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] mb-2">
             Camera Management
           </h1>
-          <p className="text-[var(--text-secondary)]">
+          <p className="text-sm sm:text-base text-[var(--text-secondary)]">
             Monitor and configure your security cameras
           </p>
         </div>
-        <Button className="gap-2 bg-[var(--accent-blue)] hover:bg-blue-600">
+        <Button className="w-full sm:w-auto gap-2 bg-[var(--accent-blue)] hover:bg-blue-600">
           <Plus className="h-4 w-4" />
           Add Camera
         </Button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <Card className="border-[var(--border)] bg-[var(--card-bg)]">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-[var(--text-secondary)]">
@@ -77,7 +77,7 @@ export default function CamerasPage() {
       </div>
 
       {/* Camera Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {cameras.map((camera) => (
           <Card key={camera.id} className="border-[var(--border)] bg-[var(--card-bg)]">
             <CardHeader className="flex flex-row items-center justify-between pb-3">
