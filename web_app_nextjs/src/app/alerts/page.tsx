@@ -1,8 +1,13 @@
+'use client';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bell, AlertTriangle, CheckCircle, Clock, Filter } from 'lucide-react';
+import { Bell, AlertTriangle, CheckCircle, Clock, Filter, Eye, Check, CheckCheck, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 
 export default function AlertsPage() {
+  const [selectedAlert, setSelectedAlert] = useState<any>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const alerts = [
     {
       id: 1,
@@ -60,8 +65,123 @@ export default function AlertsPage() {
     }
   };
 
+  const generateAlertNarrative = (alert: any) => {
+    const confidence = Math.floor(Math.random() * 20) + 80;
+    const responseTime = `${Math.floor(Math.random() * 5) + 1} min`;
+
+    const resolvedTemplates = [
+      `At ${alert.time}, our AI system detected ${alert.title.toLowerCase()} at ${alert.camera} with ${confidence}% confidence. Security personnel were immediately dispatched to the location. Upon arrival at the scene within ${responseTime}, the team conducted a thorough assessment. After reviewing the footage and interviewing witnesses, it was determined to be a false alarm. The area was secured and normal operations resumed. System sensitivity has been adjusted to reduce similar false positives.`,
+
+      `An incident was flagged by the AI detection system at ${alert.time} from ${alert.camera} showing ${alert.title.toLowerCase()}. The system registered ${confidence}% confidence in the detection. Security team responded within ${responseTime} and confirmed an actual incident requiring intervention. Local authorities were notified and arrived on scene. The situation was resolved with all parties safely removed from the premises. A full incident report has been filed with law enforcement.`,
+
+      `${alert.camera} triggered an alert at ${alert.time} for ${alert.title.toLowerCase()} with ${confidence}% confidence level. On-site security personnel investigated the alert with a response time of ${responseTime}. The incident was confirmed as a minor altercation between two individuals. Security intervened immediately, de-escalated the situation, and separated the parties involved. Both individuals were escorted off the premises. No injuries were reported and no further action required.`,
+    ];
+
+    const activeTemplates = [
+      `Alert generated at ${alert.time} from ${alert.camera} showing ${alert.title.toLowerCase()} with ${confidence}% confidence. The incident is currently under active response by the security team. Emergency protocols have been activated. Live monitoring is in progress with security personnel en route to the location. Priority level has been set to HIGH based on the nature of the alert.`,
+
+      `ACTIVE ALERT: At ${alert.time}, ${alert.camera} detected ${alert.title.toLowerCase()} with ${confidence}% confidence rating. Security personnel have been dispatched and are currently responding to the incident. Real-time footage is being monitored from the command center. All relevant stakeholders have been notified and emergency procedures are in effect.`,
+    ];
+
+    const investigatingTemplates = [
+      `Alert generated at ${alert.time} from ${alert.camera} showing ${alert.title.toLowerCase()} with ${confidence}% confidence. The incident is currently under investigation by the security team. Initial footage review is in progress. Additional camera angles are being analyzed to gather comprehensive information about the event. A determination on the nature and severity of the incident will be made pending completion of the investigation.`,
+
+      `At ${alert.time}, ${alert.camera} detected ${alert.title.toLowerCase()} with ${confidence}% confidence rating. The alert has been escalated to the investigation team for detailed analysis. Security supervisor is conducting a comprehensive review of the footage and surrounding camera feeds. Preliminary assessment is underway with expected resolution timeline within the next 30 minutes.`,
+    ];
+
+    let templates;
+    if (alert.status === 'resolved') {
+      templates = resolvedTemplates;
+    } else if (alert.status === 'active') {
+      templates = activeTemplates;
+    } else {
+      templates = investigatingTemplates;
+    }
+
+    return templates[Math.floor(Math.random() * templates.length)];
+  };
+
+  const handleViewDetails = (alert: any) => {
+    setSelectedAlert({
+      ...alert,
+      narrative: generateAlertNarrative(alert),
+      confidence: `${Math.floor(Math.random() * 20) + 80}%`,
+      responseTime: alert.status === 'resolved' ? `${Math.floor(Math.random() * 5) + 1} min` : 'N/A',
+    });
+    setShowDetailModal(true);
+  };
+
   return (
     <div className="p-8">
+      {/* Detail Modal */}
+      {showDetailModal && selectedAlert && (
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowDetailModal(false)}
+        >
+          <div
+            className="bg-[var(--card-bg)] border border-[var(--border)] rounded-lg w-full max-w-3xl max-h-[90vh] overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Alert Details</h2>
+                  <p className="text-[var(--text-secondary)]">{selectedAlert.camera}</p>
+                </div>
+                <Button
+                  onClick={() => setShowDetailModal(false)}
+                  variant="outline"
+                  className="border-[var(--border)] text-[var(--text-primary)] hover:bg-red-500/20"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-4 border border-[var(--border)] rounded-lg bg-[#0a1929]">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`px-3 py-1.5 rounded text-sm font-semibold uppercase border ${getSeverityColor(selectedAlert.severity)}`}>
+                        {selectedAlert.severity}
+                      </div>
+                      <h3 className="text-xl font-bold text-[var(--text-primary)]">{selectedAlert.title}</h3>
+                    </div>
+                    <div className={`px-4 py-1.5 rounded-full text-sm font-semibold ${getStatusColor(selectedAlert.status)}`}>
+                      {selectedAlert.status}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <p className="text-[var(--text-secondary)] text-sm mb-1">Camera Location</p>
+                      <p className="text-[var(--text-primary)] font-semibold text-base">{selectedAlert.camera}</p>
+                    </div>
+                    <div>
+                      <p className="text-[var(--text-secondary)] text-sm mb-1">Time Detected</p>
+                      <p className="text-[var(--text-primary)] font-semibold text-base">{selectedAlert.time}</p>
+                    </div>
+                    <div>
+                      <p className="text-[var(--text-secondary)] text-sm mb-1">Detection Confidence</p>
+                      <p className="text-[var(--text-primary)] font-semibold text-base">{selectedAlert.confidence}</p>
+                    </div>
+                    <div>
+                      <p className="text-[var(--text-secondary)] text-sm mb-1">Response Time</p>
+                      <p className="text-[var(--text-primary)] font-semibold text-base">{selectedAlert.responseTime}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-[var(--border)]">
+                    <p className="text-[var(--text-secondary)] text-sm mb-2 font-semibold">INCIDENT REPORT</p>
+                    <p className="text-[var(--text-primary)] text-base leading-relaxed">{selectedAlert.narrative}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
@@ -72,9 +192,9 @@ export default function AlertsPage() {
             Monitor and manage security alerts in real-time
           </p>
         </div>
-        <Button variant="outline" className="gap-2">
+        <Button className="gap-2 bg-[#1a2942] hover:bg-[#0a1929] text-[var(--text-primary)] font-semibold border border-[var(--accent-blue)] shadow-md shadow-blue-500/20">
           <Filter className="h-4 w-4" />
-          Filter
+          Filter Alerts
         </Button>
       </div>
 
@@ -174,22 +294,39 @@ export default function AlertsPage() {
 
                 {/* Actions */}
                 <div className="flex gap-2 mt-3 pt-3 border-t border-[var(--border)]">
-                  <Button variant="outline" size="sm">
+                  <Button
+                    size="sm"
+                    className="bg-[#1a2942] hover:bg-[#0a1929] text-[var(--text-primary)] font-semibold border border-[var(--accent-blue)] shadow-sm shadow-blue-500/20"
+                    onClick={() => handleViewDetails(alert)}
+                  >
+                    <Eye className="h-3.5 w-3.5 mr-1.5" />
                     View Details
                   </Button>
                   {alert.status === 'active' && (
                     <>
-                      <Button variant="outline" size="sm">
+                      <Button
+                        size="sm"
+                        className="bg-orange-600 hover:bg-orange-700 text-white font-semibold shadow-sm shadow-orange-500/30 border-0"
+                      >
+                        <Check className="h-3.5 w-3.5 mr-1.5" />
                         Acknowledge
                       </Button>
-                      <Button size="sm" className="bg-[var(--accent-blue)] hover:bg-blue-600">
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white font-semibold shadow-md shadow-green-500/30 border-0"
+                      >
+                        <CheckCheck className="h-3.5 w-3.5 mr-1.5" />
                         Resolve
                       </Button>
                     </>
                   )}
                   {alert.status === 'investigating' && (
-                    <Button size="sm" className="bg-[var(--accent-blue)] hover:bg-blue-600">
-                      Mark Resolved
+                    <Button
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white font-semibold shadow-md shadow-green-500/30 border-0"
+                    >
+                      <CheckCheck className="h-3.5 w-3.5 mr-1.5" />
+                      Resolve
                     </Button>
                   )}
                 </div>

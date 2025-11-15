@@ -89,7 +89,8 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
+                "flex items-center rounded-lg transition-all",
+                collapsed ? "justify-center px-3 py-2" : "gap-3 px-3 py-2",
                 "hover:bg-[var(--border)]",
                 isActive && "bg-[var(--accent-blue)] text-white hover:bg-blue-600",
                 !isActive && "text-[var(--text-secondary)]"
@@ -114,7 +115,8 @@ export function Sidebar() {
             console.log('Logout clicked');
           }}
           className={cn(
-            "flex items-center gap-3 px-3 py-2 rounded-lg transition-all w-full",
+            "flex items-center rounded-lg transition-all w-full",
+            collapsed ? "justify-center px-3 py-2" : "gap-3 px-3 py-2",
             "hover:bg-red-500/10 text-red-500 hover:text-red-600"
           )}
           title={collapsed ? 'Logout' : undefined}

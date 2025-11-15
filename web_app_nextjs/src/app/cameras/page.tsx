@@ -1,8 +1,12 @@
+'use client';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, Plus, Settings, Wifi, WifiOff, Video, Cog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 
 export default function CamerasPage() {
+  const [hoveredCamera, setHoveredCamera] = useState<number | null>(null);
   const cameras = [
     { id: 1, name: 'Entrance Main', location: 'Building A - Floor 1', status: 'online', alerts: 3, videoUrl: '/videos/cameras/14698511_1920_1080_60fps.mp4' },
     { id: 2, name: 'Parking Lot', location: 'Outdoor - North', status: 'online', alerts: 0, videoUrl: '/videos/cameras/New York 1956 42nd St WebCam - LIVE.mp4' },
@@ -91,23 +95,45 @@ export default function CamerasPage() {
             </CardHeader>
             <CardContent>
               {/* Camera Preview */}
-              <div className="aspect-video bg-black rounded-lg mb-3 relative overflow-hidden">
+              <div
+                className="aspect-video bg-black rounded-lg mb-3 relative overflow-hidden group cursor-pointer"
+                onMouseEnter={() => setHoveredCamera(camera.id)}
+                onMouseLeave={() => setHoveredCamera(null)}
+              >
                 {camera.status === 'online' && camera.videoUrl ? (
                   <>
                     <video
+                      key={camera.id}
                       className="w-full h-full object-cover"
-                      autoPlay
                       loop
                       muted
                       playsInline
+                      preload="metadata"
+                      ref={(video) => {
+                        if (video) {
+                          if (hoveredCamera === camera.id) {
+                            video.play().catch(() => {});
+                          } else {
+                            video.pause();
+                            video.currentTime = 0;
+                          }
+                        }
+                      }}
                     >
                       <source src={camera.videoUrl} type="video/mp4" />
                       Your browser does not support the video tag.
                     </video>
                     <div className="absolute top-2 left-2 bg-black/70 px-2 py-1 rounded-full flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                      <span className="text-xs text-white font-medium">LIVE</span>
+                      <div className={`w-1.5 h-1.5 rounded-full ${hoveredCamera === camera.id ? 'bg-red-500 animate-pulse' : 'bg-gray-500'}`} />
+                      <span className="text-xs text-white font-medium">{hoveredCamera === camera.id ? 'LIVE' : 'PAUSED'}</span>
                     </div>
+                    {hoveredCamera !== camera.id && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/20 transition-colors">
+                        <div className="bg-white/20 backdrop-blur-sm rounded-full p-4 group-hover:scale-110 transition-transform">
+                          <Video className="h-8 w-8 text-white" />
+                        </div>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-[var(--border)]">
