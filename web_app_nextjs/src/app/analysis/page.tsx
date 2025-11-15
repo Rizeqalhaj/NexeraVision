@@ -195,11 +195,16 @@ export default function AnalysisPage() {
       const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
       const responseTime = `${Math.floor(Math.random() * 10) + 1} min`;
 
-      const templates = isResolved ? narrativeTemplates.resolved : narrativeTemplates.pending;
-      const template = templates[Math.floor(Math.random() * templates.length)];
-      const narrative = isResolved
-        ? template(camera, time, type, `${confidence}%`, responseTime)
-        : template(camera, time, type, `${confidence}%`);
+      let narrative: string;
+      if (isResolved) {
+        const templates = narrativeTemplates.resolved;
+        const template = templates[Math.floor(Math.random() * templates.length)];
+        narrative = template(camera, time, type, `${confidence}%`, responseTime);
+      } else {
+        const templates = narrativeTemplates.pending;
+        const template = templates[Math.floor(Math.random() * templates.length)];
+        narrative = template(camera, time, type, `${confidence}%`);
+      }
 
       incidents.push({
         id: i + 1,
@@ -610,7 +615,7 @@ export default function AnalysisPage() {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                     outerRadius={100}
                     fill="#8884d8"
                     dataKey="value"
