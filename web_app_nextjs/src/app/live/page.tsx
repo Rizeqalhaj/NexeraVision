@@ -88,45 +88,6 @@ export default function LiveDashboard() {
         </TabsContent>
       </Tabs>
 
-      {/* Features Section */}
-      <div className="mt-12 pt-8 border-t border-[var(--border)]">
-        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-6">
-          Why NexaraVision?
-        </h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-[var(--accent-blue)]">
-              90-95% Accuracy
-            </h3>
-            <p className="text-sm text-[var(--text-secondary)]">
-              Advanced AI model trained on diverse violence datasets with ResNet50V2 + Bi-LSTM
-              architecture
-            </p>
-          </div>
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-[var(--accent-blue)]">
-              Real-Time Detection
-            </h3>
-            <p className="text-sm text-[var(--text-secondary)]">
-              Less than 500ms latency from camera feed to alert notification
-            </p>
-          </div>
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-[var(--accent-blue)]">Cost Effective</h3>
-            <p className="text-sm text-[var(--text-secondary)]">
-              $5-15 per camera/month vs $50-200 for enterprise solutions
-            </p>
-          </div>
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-[var(--accent-blue)]">
-              No Hardware Changes
-            </h3>
-            <p className="text-sm text-[var(--text-secondary)]">
-              Works with your existing CCTV infrastructure, no camera replacement needed
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

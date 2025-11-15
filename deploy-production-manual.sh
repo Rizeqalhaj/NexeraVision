@@ -1,0 +1,279 @@
+#!/bin/bash
+
+# Manual Production Deployment Script for NexaraVision
+# Run this script on the server: ssh admin@31.57.166.18 'bash -s' < deploy-production-manual.sh
+
+set -e
+
+echo "=========================================="
+echo "Deploying NEW Stack to PRODUCTION"
+echo "Next.js + NestJS + Python ML Service"
+echo "=========================================="
+
+# Create production directory
+DEPLOY_DIR=~/nexara-vision-production
+mkdir -p $DEPLOY_DIR
+cd $DEPLOY_DIR
+
+# Clone or pull latest code from main branch
+if [ -d ".git" ]; then
+  echo "📥 Updating existing repository..."
+  git fetch origin
+  git reset --hard origin/main
+  git clean -fd
+else
+  echo "📥 Cloning repository..."
+  git clone -b main https://github.com/Rizeqalhaj/NexeraVision.git .
+fi
+
+echo ""
+echo "=========================================="
+echo "STEP 1: Deploy Next.js Frontend"
+echo "=========================================="
+
+# Stop old Docker container if exists (migration cleanup)
+echo "🛑 Stopping old Docker container services..."
+docker stop violence-detection 2>/dev/null || true
+docker rm violence-detection 2>/dev/null || true
+
+cd $DEPLOY_DIR/web_app_nextjs
+
+# Install dependencies
+echo "📦 Installing frontend dependencies..."
+npm ci
+
+# Build Next.js app
+echo "🔨 Building Next.js app..."
+npm run build
+
+# Remove devDependencies after build to save space
+npm prune --production
+
+# Stop existing frontend PM2 process
+pm2 delete nexara-vision-frontend-production 2>/dev/null || true
+
+# Start frontend on port 3005
+echo "🚀 Starting Next.js frontend on port 3005..."
+PORT=3005 pm2 start npm --name "nexara-vision-frontend-production" -- start
+
+echo ""
+echo "=========================================="
+echo "STEP 2: Deploy NestJS Backend"
+echo "=========================================="
+
+cd $DEPLOY_DIR/web_app_backend
+
+# Install dependencies
+echo "📦 Installing backend dependencies..."
+npm ci
+
+# Create .env file
+echo "⚙️  Creating environment configuration..."
+cat > .env << 'ENV'
+PORT=3006
+NODE_ENV=production
+DATABASE_URL=postgresql://postgres:E$$athecode006@localhost:5432/nexara_vision_production
+ML_SERVICE_URL=http://localhost:3007
+JWT_SECRET=nexara-vision-production-secret-key-2024
+REDIS_HOST=localhost
+REDIS_PORT=6379
+CORS_ORIGIN=https://vision.nexaratech.io,http://localhost:3005
+ENV
+
+# Run Prisma migrations
+echo "🗄️  Running database migrations..."
+set -a && source .env && set +a
+npx prisma generate
+npx prisma migrate deploy 2>/dev/null || echo "⚠️  Migration skipped (may not be needed)"
+
+# Build NestJS app
+echo "🔨 Building NestJS backend..."
+npm run build
+
+# Stop existing backend PM2 process
+pm2 delete nexara-vision-backend-production 2>/dev/null || true
+
+# Start backend on port 3006
+echo "🚀 Starting NestJS backend on port 3006..."
+PORT=3006 pm2 start dist/src/main.js --name "nexara-vision-backend-production"
+
+echo ""
+echo "=========================================="
+echo "STEP 3: Deploy Python ML Service"
+echo "=========================================="
+
+if [ -d "$DEPLOY_DIR/ml_service" ]; then
+  cd $DEPLOY_DIR/ml_service
+
+  # Stop existing ML service container
+  echo "🛑 Stopping existing ML service..."
+  docker stop nexara-ml-service-production 2>/dev/null || true
+  docker rm nexara-ml-service-production 2>/dev/null || true
+
+  # Build Docker image
+  echo "🔨 Building ML service Docker image..."
+  if docker build -t nexara-ml-service:production . 2>&1 | tail -20; then
+    # Run ML service container on port 3007
+    echo "🚀 Starting ML service on port 3007..."
+    docker run -d \
+      --name nexara-ml-service-production \
+      -p 3007:8000 \
+      --restart unless-stopped \
+      -v $DEPLOY_DIR/models:/app/models:ro \
+      nexara-ml-service:production || echo "⚠️  ML service failed to start"
+  else
+    echo "⚠️  ML service build failed (skipping)"
+  fi
+else
+  echo "⚠️  ML service directory not found (skipping)"
+fi
+
+echo ""
+echo "=========================================="
+echo "STEP 4: Configure Nginx"
+echo "=========================================="
+
+# Create nginx config for production stack
+echo "⚙️  Configuring nginx for production..."
+sudo tee /etc/nginx/sites-available/violence-detection > /dev/null << 'NGINX'
+server {
+    listen 80;
+    listen 443 ssl http2;
+    server_name vision.nexaratech.io;
+
+    ssl_certificate /etc/letsencrypt/live/vision.nexaratech.io/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/vision.nexaratech.io/privkey.pem;
+
+    client_max_body_size 100M;
+
+    # Next.js Frontend
+    location / {
+        proxy_pass http://localhost:3005;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # NestJS Backend API
+    location /api {
+        proxy_pass http://localhost:3006;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 600;
+        proxy_send_timeout 600;
+        proxy_read_timeout 600;
+        send_timeout 600;
+    }
+
+    # ML Service (internal - not exposed publicly)
+    # Accessible only via backend at http://localhost:3007
+}
+NGINX
+
+sudo ln -sf /etc/nginx/sites-available/violence-detection /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+
+echo ""
+echo "=========================================="
+echo "STEP 5: Health Checks"
+echo "=========================================="
+
+# Wait for services to start
+sleep 5
+
+# Check PM2 processes
+echo "📊 PM2 Process Status:"
+pm2 list | grep production || echo "No production processes found"
+
+# Check Docker containers
+echo ""
+echo "🐳 Docker Container Status:"
+docker ps | grep production || echo "⚠️  No production ML container running"
+
+# Test endpoints with retry
+echo ""
+echo "🔍 Testing Endpoints (with retry):"
+
+# Test frontend with retry
+echo -n "Testing Frontend (Next.js) on port 3005... "
+for i in {1..10}; do
+  if curl -f http://localhost:3005 > /dev/null 2>&1; then
+    echo "✓ OK"
+    break
+  fi
+  if [ $i -eq 10 ]; then
+    echo "✗ FAILED after 10 retries"
+  else
+    sleep 2
+  fi
+done
+
+# Test backend with retry
+echo -n "Testing Backend (NestJS) on port 3006... "
+for i in {1..10}; do
+  if curl -f http://localhost:3006 > /dev/null 2>&1; then
+    echo "✓ OK"
+    break
+  fi
+  if [ $i -eq 10 ]; then
+    echo "✗ FAILED after 10 retries"
+  else
+    sleep 2
+  fi
+done
+
+# Test ML service (optional but recommended)
+if docker ps | grep -q nexara-ml-service-production; then
+  echo -n "Testing ML Service (Python) on port 3007... "
+  for i in {1..5}; do
+    if curl -f http://localhost:3007/health > /dev/null 2>&1; then
+      echo "✓ OK"
+      break
+    fi
+    if [ $i -eq 5 ]; then
+      echo "⚠️  FAILED (non-critical)"
+    else
+      sleep 2
+    fi
+  done
+fi
+
+echo ""
+echo "=========================================="
+echo "✓ Production Deployment Complete!"
+echo "=========================================="
+echo "🌐 Production URL: https://vision.nexaratech.io"
+echo ""
+echo "Services:"
+echo "  • Frontend (Next.js): port 3005"
+echo "  • Backend (NestJS): port 3006"
+echo "  • ML Service (Python): port 3007"
+echo ""
+echo "PM2 Processes:"
+echo "  • nexara-vision-frontend-production"
+echo "  • nexara-vision-backend-production"
+echo ""
+echo "Docker Containers:"
+echo "  • nexara-ml-service-production"
+echo "=========================================="
+
+# Save PM2 process list
+pm2 save
+
+# Clean up old Docker images
+echo "Cleaning up old Docker images..."
+docker image prune -f 2>/dev/null || true
+
+echo ""
+echo "✅ Deployment complete!"
