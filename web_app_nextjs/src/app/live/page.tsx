@@ -1,14 +1,17 @@
-import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Upload, Video, Grid3x3, ArrowRight } from 'lucide-react';
+'use client';
+
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Upload, Video, Grid3x3 } from 'lucide-react';
+import { FileUpload } from './components/FileUpload';
+import { LiveCamera } from './components/LiveCamera';
+import { MultiCameraGrid } from './components/MultiCameraGrid';
 
 export default function LiveDashboard() {
   return (
-    <div className="p-8">
+    <div className="container mx-auto p-6 max-w-7xl">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">
+        <h1 className="text-4xl font-bold text-[var(--text-primary)] mb-2">
           Live Detection
         </h1>
         <p className="text-[var(--text-secondary)]">
@@ -16,106 +19,111 @@ export default function LiveDashboard() {
         </p>
       </div>
 
-      {/* Feature Cards */}
-      <div className="grid md:grid-cols-3 gap-6 mb-8">
-          {/* File Upload Card */}
-          <Card className="border-[var(--border)] bg-[var(--card-bg)] hover:border-[var(--accent-blue)] transition-all">
-            <CardHeader>
-              <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center mb-4">
-                <Upload className="h-6 w-6 text-[var(--accent-blue)]" />
-              </div>
-              <CardTitle className="text-[var(--text-primary)]">File Upload Detection</CardTitle>
-              <CardDescription className="text-[var(--text-secondary)]">
-                Upload existing CCTV footage for instant AI analysis
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link href="/live/upload">
-                <Button className="w-full bg-[var(--accent-blue)] hover:bg-blue-600">
-                  Upload Video
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+      {/* Tabbed Interface */}
+      <Tabs defaultValue="upload" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-8 bg-gray-800/50 p-1 h-auto">
+          <TabsTrigger
+            value="upload"
+            className="data-[state=active]:bg-[var(--accent-blue)] data-[state=active]:text-white py-3 px-4"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">File Upload</span>
+            <span className="sm:hidden">Upload</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="live"
+            className="data-[state=active]:bg-[var(--danger-red)] data-[state=active]:text-white py-3 px-4"
+          >
+            <Video className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Live Camera</span>
+            <span className="sm:hidden">Live</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="multi"
+            className="data-[state=active]:bg-[var(--success-green)] data-[state=active]:text-white py-3 px-4"
+          >
+            <Grid3x3 className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Multi-Camera Grid</span>
+            <span className="sm:hidden">Grid</span>
+          </TabsTrigger>
+        </TabsList>
 
-          {/* Live Camera Card */}
-          <Card className="border-[var(--border)] bg-[var(--card-bg)] hover:border-[var(--accent-blue)] transition-all">
-            <CardHeader>
-              <div className="w-12 h-12 rounded-lg bg-red-500/10 flex items-center justify-center mb-4">
-                <Video className="h-6 w-6 text-[var(--danger-red)]" />
-              </div>
-              <CardTitle className="text-[var(--text-primary)]">Live Camera Detection</CardTitle>
-              <CardDescription className="text-[var(--text-secondary)]">
-                Real-time violence detection with webcam feed
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link href="/live/camera">
-                <Button className="w-full bg-[var(--danger-red)] hover:bg-red-600">
-                  Start Live
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+        {/* File Upload Tab */}
+        <TabsContent value="upload" className="space-y-4">
+          <div className="mb-4">
+            <h2 className="text-2xl font-semibold text-[var(--text-primary)] mb-2">
+              Upload Video for Detection
+            </h2>
+            <p className="text-[var(--text-secondary)]">
+              Upload your CCTV footage to analyze violence probability using AI
+            </p>
+          </div>
+          <FileUpload />
+        </TabsContent>
 
-          {/* Multi-Camera Card */}
-          <Card className="border-[var(--border)] bg-[var(--card-bg)] opacity-60">
-            <CardHeader>
-              <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center mb-4">
-                <Grid3x3 className="h-6 w-6 text-[var(--success-green)]" />
-              </div>
-              <CardTitle className="text-[var(--text-primary)]">Multi-Camera Grid</CardTitle>
-              <CardDescription className="text-[var(--text-secondary)]">
-                Screen recording segmentation for 20-100 cameras
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button disabled className="w-full">
-                Coming Soon
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Live Camera Tab */}
+        <TabsContent value="live" className="space-y-4">
+          <div className="mb-4">
+            <h2 className="text-2xl font-semibold text-[var(--text-primary)] mb-2">
+              Live Violence Detection
+            </h2>
+            <p className="text-[var(--text-secondary)]">
+              Monitor your webcam feed in real-time with AI violence detection
+            </p>
+          </div>
+          <LiveCamera />
+        </TabsContent>
+
+        {/* Multi-Camera Grid Tab */}
+        <TabsContent value="multi" className="space-y-4">
+          <div className="mb-4">
+            <h2 className="text-2xl font-semibold text-[var(--text-primary)] mb-2">
+              Multi-Camera Grid Monitoring
+            </h2>
+            <p className="text-[var(--text-secondary)]">
+              Monitor multiple CCTV cameras simultaneously with screen recording segmentation
+            </p>
+          </div>
+          <MultiCameraGrid />
+        </TabsContent>
+      </Tabs>
 
       {/* Features Section */}
-      <div className="mt-12">
+      <div className="mt-12 pt-8 border-t border-[var(--border)]">
         <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-6">
           Why NexaraVision?
         </h2>
-        <div className="grid md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-[var(--accent-blue)]">
-                90-95% Accuracy
-              </h3>
-              <p className="text-[var(--text-secondary)]">
-                Advanced AI model trained on diverse violence datasets with ResNet50V2 + Bi-LSTM architecture
-              </p>
-            </div>
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-[var(--accent-blue)]">
-                Real-Time Detection
-              </h3>
-              <p className="text-[var(--text-secondary)]">
-                Less than 500ms latency from camera feed to alert notification
-              </p>
-            </div>
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-[var(--accent-blue)]">
-                Cost Effective
-              </h3>
-              <p className="text-[var(--text-secondary)]">
-                $5-15 per camera/month vs $50-200 for enterprise solutions
-              </p>
-            </div>
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-[var(--accent-blue)]">
-                No Hardware Changes
-              </h3>
-              <p className="text-[var(--text-secondary)]">
-                Works with your existing CCTV infrastructure, no camera replacement needed
-              </p>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-[var(--accent-blue)]">
+              90-95% Accuracy
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)]">
+              Advanced AI model trained on diverse violence datasets with ResNet50V2 + Bi-LSTM
+              architecture
+            </p>
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-[var(--accent-blue)]">
+              Real-Time Detection
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)]">
+              Less than 500ms latency from camera feed to alert notification
+            </p>
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-[var(--accent-blue)]">Cost Effective</h3>
+            <p className="text-sm text-[var(--text-secondary)]">
+              $5-15 per camera/month vs $50-200 for enterprise solutions
+            </p>
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-[var(--accent-blue)]">
+              No Hardware Changes
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)]">
+              Works with your existing CCTV infrastructure, no camera replacement needed
+            </p>
           </div>
         </div>
       </div>
