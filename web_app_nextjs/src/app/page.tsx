@@ -102,7 +102,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 md:p-8">
       {/* Camera Grid Modal */}
       {showCameraGrid && (
         <div
@@ -156,20 +156,20 @@ export default function Dashboard() {
         </div>
       )}
       {/* Header */}
-      <div className="mb-8 flex justify-between items-center">
+      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] mb-2">
             Dashboard
           </h1>
         </div>
-        <Button className="bg-[var(--accent-blue)] hover:bg-blue-600 text-white px-6 py-6 text-lg font-semibold shadow-lg shadow-blue-500/30">
-          <MessageSquare className="h-6 w-6 mr-3" />
+        <Button className="w-full sm:w-auto bg-[var(--accent-blue)] hover:bg-blue-600 text-white px-4 sm:px-6 py-3 sm:py-6 text-base sm:text-lg font-semibold shadow-lg shadow-blue-500/30">
+          <MessageSquare className="h-5 w-5 sm:h-6 sm:w-6 mr-2 sm:mr-3" />
           AI Assistant
         </Button>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
@@ -262,7 +262,7 @@ export default function Dashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-64">
+          <div className="h-48 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(59, 130, 246, 0.2)" />

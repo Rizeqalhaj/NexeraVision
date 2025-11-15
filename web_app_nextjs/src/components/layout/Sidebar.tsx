@@ -11,9 +11,11 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  Menu,
+  X
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 const menuItems = [
@@ -52,30 +54,80 @@ const menuItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth < 768) {
+        setCollapsed(false);
+      }
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   return (
-    <div className={cn(
-      "relative h-screen bg-[var(--card-bg)] border-r border-[var(--border)] transition-all duration-300",
-      collapsed ? "w-16" : "w-64"
-    )}>
-      {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-[var(--border)]">
-        {!collapsed && (
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">
-            NexaraVision
-          </h1>
-        )}
+    <>
+      {/* Mobile Menu Button */}
+      {isMobile && (
         <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-2 rounded-lg hover:bg-[var(--border)] transition-colors"
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-[var(--card-bg)] border border-[var(--border)] shadow-lg md:hidden"
         >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4 text-[var(--text-secondary)]" />
+          {mobileOpen ? (
+            <X className="h-6 w-6 text-[var(--text-primary)]" />
           ) : (
-            <ChevronLeft className="h-4 w-4 text-[var(--text-secondary)]" />
+            <Menu className="h-6 w-6 text-[var(--text-primary)]" />
           )}
         </button>
-      </div>
+      )}
+
+      {/* Overlay for mobile */}
+      {isMobile && mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={cn(
+        "relative h-screen bg-[var(--card-bg)] border-r border-[var(--border)] transition-all duration-300 z-40",
+        // Desktop
+        !isMobile && (collapsed ? "w-16" : "w-64"),
+        // Mobile
+        isMobile && "fixed left-0 top-0 w-64",
+        isMobile && !mobileOpen && "-translate-x-full"
+      )}>
+        {/* Logo */}
+        <div className="h-16 flex items-center justify-between px-4 border-b border-[var(--border)]">
+          {!collapsed && (
+            <h1 className="text-xl font-bold text-[var(--text-primary)]">
+              NexaraVision
+            </h1>
+          )}
+          {!isMobile && (
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="p-2 rounded-lg hover:bg-[var(--border)] transition-colors"
+            >
+              {collapsed ? (
+                <ChevronRight className="h-4 w-4 text-[var(--text-secondary)]" />
+              ) : (
+                <ChevronLeft className="h-4 w-4 text-[var(--text-secondary)]" />
+              )}
+            </button>
+          )}
+        </div>
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -136,5 +188,6 @@ export function Sidebar() {
         )}
       </div>
     </div>
+    </>
   );
 }

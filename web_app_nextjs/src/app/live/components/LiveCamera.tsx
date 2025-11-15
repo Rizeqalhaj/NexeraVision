@@ -27,6 +27,19 @@ export function LiveCamera() {
     try {
       setError(null);
 
+      // Check if mediaDevices API is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera API not supported in this browser. Please use HTTPS or localhost.');
+      }
+
+      // Check if any camera devices are available
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = devices.filter(device => device.kind === 'videoinput');
+
+      if (cameras.length === 0) {
+        throw new Error('No camera found. Please connect a webcam or use the File Upload tab.');
+      }
+
       // Request webcam access
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 640, height: 480, facingMode: 'user' },
@@ -75,7 +88,31 @@ export function LiveCamera() {
         console.log('WebSocket disconnected');
       };
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Camera access denied';
+      let errorMessage = 'Camera access failed';
+
+      if (err instanceof Error) {
+        // Use our custom error messages
+        errorMessage = err.message;
+      } else if (err instanceof DOMException) {
+        // Handle browser permission errors
+        switch (err.name) {
+          case 'NotFoundError':
+            errorMessage = 'No camera found. Please connect a webcam or use the File Upload tab.';
+            break;
+          case 'NotAllowedError':
+            errorMessage = 'Camera permission denied. Please allow camera access in browser settings.';
+            break;
+          case 'NotReadableError':
+            errorMessage = 'Camera is in use by another application. Please close other apps using the camera.';
+            break;
+          case 'OverconstrainedError':
+            errorMessage = 'Camera does not support requested settings. Try a different camera.';
+            break;
+          default:
+            errorMessage = `Camera error: ${err.message}`;
+        }
+      }
+
       setError(errorMessage);
       console.error('Failed to start detection:', err);
     }
