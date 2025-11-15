@@ -1,15 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Camera, Plus, Settings, Wifi, WifiOff } from 'lucide-react';
+import { Camera, Plus, Settings, Wifi, WifiOff, Video, Cog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function CamerasPage() {
   const cameras = [
-    { id: 1, name: 'Entrance Main', location: 'Building A - Floor 1', status: 'online', alerts: 3 },
-    { id: 2, name: 'Parking Lot', location: 'Outdoor - North', status: 'online', alerts: 0 },
-    { id: 3, name: 'Hallway B2', location: 'Building B - Floor 2', status: 'online', alerts: 1 },
-    { id: 4, name: 'Cafeteria', location: 'Building A - Floor 1', status: 'offline', alerts: 0 },
-    { id: 5, name: 'Stairwell A', location: 'Building A - Floor 3', status: 'online', alerts: 0 },
-    { id: 6, name: 'Lobby', location: 'Main Building', status: 'online', alerts: 2 },
+    { id: 1, name: 'Entrance Main', location: 'Building A - Floor 1', status: 'online', alerts: 3, videoUrl: '/videos/cameras/14698511_1920_1080_60fps.mp4' },
+    { id: 2, name: 'Parking Lot', location: 'Outdoor - North', status: 'online', alerts: 0, videoUrl: '/videos/cameras/New York 1956 42nd St WebCam - LIVE.mp4' },
+    { id: 3, name: 'Hallway B2', location: 'Building B - Floor 2', status: 'online', alerts: 1, videoUrl: '/videos/cameras/5108891-uhd_3840_2160_30fps.mp4' },
+    { id: 4, name: 'Cafeteria', location: 'Building A - Floor 1', status: 'offline', alerts: 0, videoUrl: null },
+    { id: 5, name: 'Stairwell A', location: 'Building A - Floor 3', status: 'online', alerts: 0, videoUrl: '/videos/cameras/2697636-uhd_1920_1440_30fps.mp4' },
+    { id: 6, name: 'Lobby', location: 'Main Building', status: 'online', alerts: 2, videoUrl: '/videos/cameras/5977704-hd_1366_586_30fps.mp4' },
   ];
 
   return (
@@ -90,9 +90,30 @@ export default function CamerasPage() {
               </Button>
             </CardHeader>
             <CardContent>
-              {/* Camera Preview Placeholder */}
-              <div className="aspect-video bg-[var(--border)] rounded-lg mb-3 flex items-center justify-center">
-                <Camera className="h-12 w-12 text-[var(--text-secondary)] opacity-50" />
+              {/* Camera Preview */}
+              <div className="aspect-video bg-black rounded-lg mb-3 relative overflow-hidden">
+                {camera.status === 'online' && camera.videoUrl ? (
+                  <>
+                    <video
+                      className="w-full h-full object-cover"
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                    >
+                      <source src={camera.videoUrl} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                    <div className="absolute top-2 left-2 bg-black/70 px-2 py-1 rounded-full flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                      <span className="text-xs text-white font-medium">LIVE</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-[var(--border)]">
+                    <Camera className="h-12 w-12 text-[var(--text-secondary)] opacity-50" />
+                  </div>
+                )}
               </div>
 
               {/* Camera Info */}
@@ -119,10 +140,18 @@ export default function CamerasPage() {
 
               {/* Actions */}
               <div className="flex gap-2 mt-4">
-                <Button variant="outline" size="sm" className="flex-1">
+                <Button
+                  size="sm"
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold shadow-md shadow-red-500/30 border-0"
+                >
+                  <Video className="h-4 w-4 mr-1.5" />
                   View Live
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1">
+                <Button
+                  size="sm"
+                  className="flex-1 bg-[#1a2942] hover:bg-[#0a1929] text-[var(--text-primary)] font-semibold border border-[var(--accent-blue)] shadow-md shadow-blue-500/20"
+                >
+                  <Cog className="h-4 w-4 mr-1.5" />
                   Configure
                 </Button>
               </div>

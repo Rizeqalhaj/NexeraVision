@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Camera, MessageSquare, TrendingUp, CheckCircle2, Video, Play, X } from 'lucide-react';
+import { Camera, MessageSquare, TrendingUp, CheckCircle2, Video, Play, X, BarChart3 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Dashboard() {
@@ -105,8 +105,14 @@ export default function Dashboard() {
     <div className="p-8">
       {/* Camera Grid Modal */}
       {showCameraGrid && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-lg w-full max-w-7xl max-h-[90vh] overflow-auto">
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowCameraGrid(false)}
+        >
+          <div
+            className="bg-[var(--card-bg)] border border-[var(--border)] rounded-lg w-full max-w-7xl max-h-[90vh] overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-[var(--text-primary)]">Live Camera Feeds</h2>
@@ -195,66 +201,55 @@ export default function Dashboard() {
         })}
       </div>
 
-      {/* Recent Incidents */}
+      {/* System Performance Metrics */}
       <Card className="border-[var(--border)] bg-[var(--card-bg)] mb-8">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-xl font-bold text-[var(--text-primary)]">Recent Incidents</CardTitle>
-          <Button variant="link" className="text-[var(--accent-blue)] p-0 text-base font-medium">
-            [View All]
-          </Button>
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            System Performance
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {recentIncidents.map((incident) => (
-              <div
-                key={incident.id}
-                className="border border-[var(--border)] rounded-lg p-4"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <div className={`w-3 h-3 rounded-full mt-1.5 ${
-                      incident.status === 'danger' ? 'bg-red-500' : 'bg-yellow-500'
-                    }`} />
-                    <div>
-                      <p className="text-base font-semibold text-[var(--text-primary)]">
-                        {incident.camera}
-                      </p>
-                      <p className="text-sm text-[var(--text-secondary)] mt-1">
-                        {incident.time}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-[var(--text-primary)]">
-                      {incident.type}
-                    </p>
-                    <p className="text-base font-semibold text-[var(--text-primary)] mt-1">
-                      Confidence: {incident.confidence}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4 flex gap-3">
-                  <Button
-                    size="sm"
-                    className="bg-[#1a2942] hover:bg-[#0a1929] border border-[var(--accent-blue)] text-[var(--accent-blue)] font-medium px-4 py-2 shadow-sm hover:shadow-blue-500/30"
-                  >
-                    View
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="bg-[#1a2942] hover:bg-[#0a1929] border border-[var(--success-green)] text-[var(--success-green)] font-medium px-4 py-2 shadow-sm hover:shadow-green-500/30"
-                  >
-                    Mark Safe
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="bg-[#1a2942] hover:bg-[#0a1929] border border-[var(--accent-blue)]/70 text-[var(--text-primary)] font-medium px-4 py-2 shadow-sm hover:shadow-blue-500/20"
-                  >
-                    Clip
-                  </Button>
-                </div>
+          <div className="space-y-6">
+            <div>
+              <div className="flex justify-between mb-3">
+                <span className="text-base font-medium text-[var(--text-secondary)]">Detection Accuracy</span>
+                <span className="text-base font-semibold text-[var(--text-primary)]">94.5%</span>
               </div>
-            ))}
+              <div className="w-full bg-[#1e293b] rounded-full h-3">
+                <div className="bg-green-500 h-3 rounded-full transition-all duration-300" style={{ width: '94.5%' }} />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between mb-3">
+                <span className="text-base font-medium text-[var(--text-secondary)]">Camera Uptime</span>
+                <span className="text-base font-semibold text-[var(--text-primary)]">99.2%</span>
+              </div>
+              <div className="w-full bg-[#1e293b] rounded-full h-3">
+                <div className="bg-blue-500 h-3 rounded-full transition-all duration-300" style={{ width: '99.2%' }} />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between mb-3">
+                <span className="text-base font-medium text-[var(--text-secondary)]">Response Time</span>
+                <span className="text-base font-semibold text-[var(--text-primary)]">0.3s avg</span>
+              </div>
+              <div className="w-full bg-[#1e293b] rounded-full h-3">
+                <div className="bg-purple-500 h-3 rounded-full transition-all duration-300" style={{ width: '85%' }} />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between mb-3">
+                <span className="text-base font-medium text-[var(--text-secondary)]">Storage Used</span>
+                <span className="text-base font-semibold text-[var(--text-primary)]">67%</span>
+              </div>
+              <div className="w-full bg-[#1e293b] rounded-full h-3">
+                <div className="bg-orange-500 h-3 rounded-full transition-all duration-300" style={{ width: '67%' }} />
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
