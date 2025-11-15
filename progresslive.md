@@ -6,9 +6,11 @@
 
 ---
 
-## 🚀 Deployment Port Configuration - FIXED (2025-11-15)
+## 🚀 Deployment Port Configuration - FULLY FIXED (2025-11-15)
 
 **Issue Resolved**: Production deployment was using incorrect ports (staging ports 8001-8003 instead of production ports 3005-3007).
+
+**Critical Discovery**: PostgreSQL is running on port **5433** (not default 5432) on the server. All workflows and configurations have been updated.
 
 ### Port Configuration
 

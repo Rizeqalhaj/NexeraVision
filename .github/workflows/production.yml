@@ -106,12 +106,12 @@ jobs:
             printf '%s\n' \
               'PORT=3006' \
               'NODE_ENV=production' \
-              'DATABASE_URL=postgresql://postgres:E$$athecode006@localhost:5432/nexara_vision_production' \
+              'DATABASE_URL=postgresql://postgres:E$$athecode006@localhost:5433/nexara_vision_production' \
               'ML_SERVICE_URL=http://localhost:3007' \
               'JWT_SECRET=nexara-vision-production-secret-key-2024' \
               'REDIS_HOST=localhost' \
               'REDIS_PORT=6379' \
-              'CORS_ORIGIN=https://vision.nexaratech.io,http://localhost:3005' \
+              'CORS_ORIGIN=https://vision.nexaratech.io,http://localhost:3006' \
               > .env
 
             # Run Prisma migrations
