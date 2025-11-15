@@ -1,8 +1,55 @@
 """
 Core configuration for NexaraVision ML Service.
 """
+import os
+import logging
 from pydantic_settings import BaseSettings
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+
+def find_model_path() -> str:
+    """
+    Find the best available model file with fallback paths.
+
+    Returns:
+        Path to model file
+    """
+    # Possible model paths in priority order
+    search_paths = [
+        # Docker paths
+        "/app/models/ultimate_best_model.h5",
+        "/app/models/best_model.h5",
+        # Local development paths
+        "ml_service/models/best_model.h5",
+        "models/best_model.h5",
+        "downloaded_models/ultimate_best_model.h5",
+        "downloaded_models/best_model.h5",
+        # Absolute local paths
+        "/home/admin/Desktop/NexaraVision/ml_service/models/best_model.h5",
+        "/home/admin/Desktop/NexaraVision/downloaded_models/ultimate_best_model.h5",
+    ]
+
+    # Check environment variable first
+    env_model_path = os.getenv("MODEL_PATH")
+    if env_model_path:
+        model_path = Path(env_model_path)
+        if model_path.exists():
+            logger.info(f"Using model from environment variable: {model_path}")
+            return str(model_path)
+
+    # Search for model in priority order
+    for path_str in search_paths:
+        model_path = Path(path_str)
+        if model_path.exists():
+            logger.info(f"Found model at: {model_path}")
+            return str(model_path)
+
+    # Default fallback
+    default_path = "models/best_model.h5"
+    logger.warning(f"No model found in search paths. Using default: {default_path}")
+    return default_path
 
 
 class Settings(BaseSettings):
@@ -14,7 +61,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
 
     # Model configuration
-    MODEL_PATH: str = "/app/models/ultimate_best_model.h5"
+    MODEL_PATH: str = find_model_path()
     NUM_FRAMES: int = 20
     FRAME_SIZE: tuple = (224, 224)
 
