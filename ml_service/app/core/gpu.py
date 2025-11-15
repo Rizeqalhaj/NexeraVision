@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 def configure_gpu(memory_fraction: float = 0.8) -> bool:
     """
     Configure GPU settings for optimal inference performance.
+    Gracefully falls back to CPU if GPU is unavailable or configuration fails.
 
     Args:
         memory_fraction: Fraction of GPU memory to allocate (0.0 to 1.0)
@@ -19,29 +20,43 @@ def configure_gpu(memory_fraction: float = 0.8) -> bool:
     Returns:
         True if GPU is available and configured, False otherwise
     """
-    gpus = tf.config.list_physical_devices('GPU')
-
-    if not gpus:
-        logger.warning("No GPU detected. Running on CPU.")
-        return False
-
     try:
-        for gpu in gpus:
-            # Enable memory growth to prevent TensorFlow from allocating all GPU memory
-            tf.config.experimental.set_memory_growth(gpu, True)
+        gpus = tf.config.list_physical_devices('GPU')
 
-            # Set memory limit
-            memory_limit = int(get_gpu_memory(gpu) * memory_fraction)
-            tf.config.set_logical_device_configuration(
-                gpu,
-                [tf.config.LogicalDeviceConfiguration(memory_limit=memory_limit)]
-            )
+        if not gpus:
+            logger.warning("No GPU detected. Running on CPU - inference will be slower but functional.")
+            # Explicitly set CPU device
+            tf.config.set_visible_devices([], 'GPU')
+            return False
 
-        logger.info(f"Configured {len(gpus)} GPU(s) with {memory_fraction*100:.0f}% memory allocation")
-        return True
+        try:
+            for gpu in gpus:
+                # Enable memory growth to prevent TensorFlow from allocating all GPU memory
+                tf.config.experimental.set_memory_growth(gpu, True)
 
-    except RuntimeError as e:
-        logger.error(f"GPU configuration failed: {e}")
+                # Set memory limit
+                memory_limit = int(get_gpu_memory(gpu) * memory_fraction)
+                tf.config.set_logical_device_configuration(
+                    gpu,
+                    [tf.config.LogicalDeviceConfiguration(memory_limit=memory_limit)]
+                )
+
+            logger.info(f"Configured {len(gpus)} GPU(s) with {memory_fraction*100:.0f}% memory allocation")
+            return True
+
+        except RuntimeError as e:
+            logger.warning(f"GPU configuration failed: {e}. Falling back to CPU.")
+            # Force CPU usage
+            tf.config.set_visible_devices([], 'GPU')
+            return False
+
+    except Exception as e:
+        logger.warning(f"GPU detection failed: {e}. Running on CPU.")
+        # Force CPU usage on any error
+        try:
+            tf.config.set_visible_devices([], 'GPU')
+        except Exception:
+            pass  # Already on CPU
         return False
 
 
@@ -85,16 +100,21 @@ def get_device_info() -> dict:
 def warmup_gpu():
     """
     Warm up GPU with dummy operations to initialize CUDA.
+    Safely handles CPU-only environments.
     """
-    if not tf.config.list_physical_devices('GPU'):
-        logger.info("No GPU to warm up")
-        return
+    try:
+        if not tf.config.list_physical_devices('GPU'):
+            logger.info("No GPU to warm up - using CPU")
+            return
 
-    logger.info("Warming up GPU...")
+        logger.info("Warming up GPU...")
 
-    # Create dummy tensor and perform operations
-    dummy = tf.random.normal((1, 224, 224, 3))
-    _ = tf.nn.relu(dummy)
-    _ = tf.reduce_sum(dummy)
+        # Create dummy tensor and perform operations
+        dummy = tf.random.normal((1, 224, 224, 3))
+        _ = tf.nn.relu(dummy)
+        _ = tf.reduce_sum(dummy)
 
-    logger.info("GPU warm-up complete")
+        logger.info("GPU warm-up complete")
+
+    except Exception as e:
+        logger.warning(f"GPU warm-up failed (continuing with CPU): {e}")

@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import detect, detect_live
+from app.api import detect, detect_live, websocket
 from app.core.config import settings
 from app.core.gpu import configure_gpu, get_device_info
 
@@ -41,7 +41,8 @@ async def lifespan(app: FastAPI):
     # Initialize model
     logger.info("Loading violence detection model...")
     detect.initialize_detector()
-    detect_live.detector = detect.detector  # Share model instance
+    detect_live.detector = detect.detector  # Share model instance with HTTP endpoint
+    websocket.detector = detect.detector  # Share model instance with WebSocket endpoint
     logger.info("Model loaded and ready")
 
     # Log device info
@@ -74,6 +75,7 @@ app.add_middleware(
 # Include routers
 app.include_router(detect.router, prefix="/api", tags=["detection"])
 app.include_router(detect_live.router, prefix="/api", tags=["live-detection"])
+app.include_router(websocket.router, prefix="/api", tags=["websocket"])
 
 
 @app.get("/")
@@ -86,6 +88,8 @@ async def root():
         "endpoints": {
             "file_upload": "/api/detect",
             "live_stream": "/api/detect_live",
+            "websocket_live": "/api/ws/live",
+            "websocket_status": "/api/ws/status",
             "batch_processing": "/api/detect_live_batch",
             "health": "/api/health",
             "docs": "/docs",

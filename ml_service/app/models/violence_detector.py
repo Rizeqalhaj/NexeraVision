@@ -39,40 +39,54 @@ class ViolenceDetector:
 
     def _load_model(self) -> tf.keras.Model:
         """
-        Load Keras model with error handling.
+        Load Keras model with device-agnostic error handling.
+        Supports both .h5 and .keras formats, handles GPU/CPU gracefully.
 
         Returns:
             Loaded Keras model
         """
         try:
-            model = tf.keras.models.load_model(
-                str(self.model_path),
-                compile=False  # Skip compilation for inference
-            )
+            # Force CPU if GPU is not available
+            with tf.device('/CPU:0'):
+                model = tf.keras.models.load_model(
+                    str(self.model_path),
+                    compile=False  # Skip compilation for inference
+                )
 
             # Log model architecture summary
-            total_params = sum([np.prod(layer.get_weights()[0].shape)
-                              for layer in model.layers
-                              if len(layer.get_weights()) > 0])
-            logger.info(f"Model loaded: {len(model.layers)} layers, {total_params:,} parameters")
+            try:
+                total_params = sum([np.prod(layer.get_weights()[0].shape)
+                                  for layer in model.layers
+                                  if len(layer.get_weights()) > 0])
+                logger.info(f"Model loaded: {len(model.layers)} layers, {total_params:,} parameters")
+            except Exception as e:
+                logger.warning(f"Could not compute parameters: {e}")
+                logger.info(f"Model loaded: {len(model.layers)} layers")
+
+            # Detect device being used
+            gpu_available = len(tf.config.list_physical_devices('GPU')) > 0
+            device = "GPU" if gpu_available else "CPU"
+            logger.info(f"Model will run on: {device}")
 
             return model
 
         except Exception as e:
-            logger.error(f"Failed to load model: {e}")
-            raise
+            logger.error(f"Failed to load model from {self.model_path}: {e}")
+            raise RuntimeError(f"Model loading failed: {e}") from e
 
     def _warmup(self):
         """
-        Warm up GPU with dummy inference to initialize CUDA kernels.
+        Warm up model with dummy inference to initialize kernels.
+        Works for both GPU and CPU.
         """
         dummy_input = np.zeros((1, 20, 224, 224, 3), dtype=np.float32)
 
         try:
             _ = self.model.predict(dummy_input, verbose=0)
-            logger.info("GPU warm-up successful")
+            device = "GPU" if len(tf.config.list_physical_devices('GPU')) > 0 else "CPU"
+            logger.info(f"Model warm-up successful on {device}")
         except Exception as e:
-            logger.warning(f"Warm-up failed (model may still work): {e}")
+            logger.warning(f"Model warm-up failed (model may still work): {e}")
 
     def predict(self, frames: np.ndarray) -> Dict[str, any]:
         """
