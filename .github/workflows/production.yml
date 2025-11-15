@@ -257,7 +257,7 @@ jobs:
             # Test backend with retry
             echo -n "Testing Backend (NestJS) on port 3006... "
             for i in {1..10}; do
-              if curl -f http://localhost:3006 > /dev/null 2>&1; then
+              if curl -f http://localhost:3006/api > /dev/null 2>&1; then
                 echo "✓ OK"
                 break
               fi
