@@ -67,12 +67,14 @@ class Settings(BaseSettings):
     # Model configuration
     MODEL_PATH: str = find_model_path()
     NUM_FRAMES: int = 20
-    FRAME_SIZE: tuple = (224, 224)
+    FRAME_WIDTH: int = 224  # Split tuple into separate fields for env var compatibility
+    FRAME_HEIGHT: int = 224
 
     # Performance
     MAX_WORKERS: int = 4
     BATCH_SIZE: int = 32
     GPU_MEMORY_FRACTION: float = 0.8
+    USE_GPU: bool = False  # Added as proper field
 
     # API
     HOST: str = "0.0.0.0"
@@ -83,9 +85,15 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
     REDIS_ENABLED: bool = False
 
+    @property
+    def FRAME_SIZE(self) -> tuple:
+        """Return frame size as tuple for backwards compatibility."""
+        return (self.FRAME_WIDTH, self.FRAME_HEIGHT)
+
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # Allow extra env vars without error
 
 
 settings = Settings()
