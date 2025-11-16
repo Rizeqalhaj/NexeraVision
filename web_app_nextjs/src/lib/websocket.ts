@@ -60,12 +60,22 @@ export class DetectionWebSocket {
    * Get WebSocket URL based on environment
    */
   private getWebSocketUrl(): string {
+    // Use environment variable if available
+    if (process.env.NEXT_PUBLIC_WS_URL) {
+      return process.env.NEXT_PUBLIC_WS_URL;
+    }
+
     if (typeof window === 'undefined') {
       return 'ws://localhost:8002';
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.hostname;
+
+    // In production, use same host (nginx will proxy)
+    if (host !== 'localhost') {
+      return `${protocol}//${host}/ws/live`;
+    }
 
     // Backend WebSocket server runs on port 8002
     return `${protocol}//${host}:8002`;

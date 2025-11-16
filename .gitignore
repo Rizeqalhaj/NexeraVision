@@ -92,6 +92,7 @@ claudedocs/
 .env.local
 .env.production
 .env.staging
+!.env*.example
 secrets/
 deploy_key*
 

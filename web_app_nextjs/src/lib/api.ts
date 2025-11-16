@@ -81,6 +81,146 @@ export async function uploadWithProgress(
   });
 }
 
+interface StreamProgressUpdate {
+  type: 'start' | 'progress' | 'result' | 'error' | 'end';
+  stage?: string;
+  progress?: number;
+  message?: string;
+  data?: any; // Raw API response, will be transformed
+  filename?: string;
+  size_mb?: number;
+  video_info?: {
+    total_frames: number;
+    fps: number;
+    width: number;
+    height: number;
+    duration_seconds: number;
+  };
+  frame?: number;
+  total?: number;
+  extraction_time_ms?: number;
+  inference_time_ms?: number;
+}
+
+/**
+ * Transform ML service response (snake_case) to frontend format (camelCase)
+ */
+function transformMLResponse(apiResponse: any): DetectionResult {
+  return {
+    violenceProbability: apiResponse.violence_probability ?? apiResponse.violenceProbability ?? 0,
+    confidence: apiResponse.confidence ?? 'Medium',
+    perClassScores: apiResponse.per_class_scores ? {
+      nonViolence: apiResponse.per_class_scores.non_violence ?? 0,
+      violence: apiResponse.per_class_scores.violence ?? 0,
+    } : undefined,
+    prediction: apiResponse.prediction,
+    inferenceTimeMs: apiResponse.inference_time_ms ?? apiResponse.inferenceTimeMs,
+    backend: apiResponse.backend,
+    videoMetadata: apiResponse.video_metadata ? {
+      filename: apiResponse.video_metadata.filename,
+      durationSeconds: apiResponse.video_metadata.duration_seconds,
+      fps: apiResponse.video_metadata.fps,
+      resolution: apiResponse.video_metadata.resolution,
+      totalFrames: apiResponse.video_metadata.total_frames,
+    } : undefined,
+    timing: apiResponse.timing ? {
+      extractionMs: apiResponse.timing.extraction_ms,
+      inferenceMs: apiResponse.timing.inference_ms,
+      totalMs: apiResponse.timing.total_ms,
+    } : undefined,
+  };
+}
+
+/**
+ * Upload video with streaming progress using Server-Sent Events
+ * Provides real-time feedback during frame extraction and inference
+ */
+export async function uploadWithStreamingProgress(
+  file: File,
+  onProgress: (update: StreamProgressUpdate) => void
+): Promise<DetectionResult> {
+  const ML_SERVICE_URL = process.env.NEXT_PUBLIC_ML_SERVICE_URL || 'http://localhost:8003/api';
+  const formData = new FormData();
+  formData.append('video', file);
+
+  return new Promise((resolve, reject) => {
+    fetch(`${ML_SERVICE_URL}/detect_stream`, {
+      method: 'POST',
+      body: formData,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new ApiError(response.status, `Upload failed: ${response.statusText}`);
+        }
+
+        if (!response.body) {
+          throw new Error('No response body');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        const processStream = async () => {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+
+            // Process complete SSE events
+            const lines = buffer.split('\n\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.slice(6)) as StreamProgressUpdate;
+                  onProgress(data);
+
+                  if (data.type === 'result' && data.data) {
+                    // Transform snake_case API response to camelCase frontend format
+                    const transformedResult = transformMLResponse(data.data);
+                    resolve(transformedResult);
+                  } else if (data.type === 'error') {
+                    reject(new Error(data.message || 'Processing failed'));
+                  }
+                } catch (e) {
+                  console.error('Failed to parse SSE event:', e);
+                }
+              }
+            }
+          }
+        };
+
+        processStream().catch(reject);
+      })
+      .catch(reject);
+  });
+}
+
+/**
+ * Fast detection using optimized TFLite model
+ * Returns results with detailed timing information
+ */
+export async function uploadVideoFast(file: File): Promise<DetectionResult> {
+  const ML_SERVICE_URL = process.env.NEXT_PUBLIC_ML_SERVICE_URL || 'http://localhost:8003/api';
+  const formData = new FormData();
+  formData.append('video', file);
+
+  const response = await fetch(`${ML_SERVICE_URL}/detect_fast`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new ApiError(response.status, `Fast detection failed: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  return result;
+}
+
 /**
  * Model Abstraction Layer
  * Supports multiple AI models for A/B testing and gradual migration

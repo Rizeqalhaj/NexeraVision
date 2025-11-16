@@ -44,6 +44,8 @@ class LiveDetectionResult(BaseModel):
     confidence: str
     prediction: str
     per_class_scores: dict
+    inference_time_ms: float = 0.0
+    backend: str = "keras"
 
 
 @router.post("/detect_live", response_model=LiveDetectionResult)
@@ -69,6 +71,9 @@ async def detect_live(request: LiveDetectionRequest):
     logger.info("Processing live detection request")
 
     try:
+        import time
+        start_time = time.time()
+
         # Decode all frames
         frames = []
         for i, frame_b64 in enumerate(request.frames):
@@ -88,9 +93,16 @@ async def detect_live(request: LiveDetectionRequest):
         # Predict
         result = detector.predict(frames_array)
 
+        # Calculate inference time
+        inference_time = (time.time() - start_time) * 1000
+
+        # Add timing and backend info
+        result["inference_time_ms"] = round(inference_time, 2)
+        result["backend"] = "keras"
+
         logger.info(
             f"Live detection: {result['prediction']} "
-            f"({result['violence_probability']:.2%})"
+            f"({result['violence_probability']:.2%}) in {inference_time:.2f}ms"
         )
 
         return result
