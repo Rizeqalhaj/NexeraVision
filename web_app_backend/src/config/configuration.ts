@@ -8,7 +8,7 @@ export default () => ({
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
   },
   mlService: {
-    url: process.env.ML_SERVICE_URL || 'http://localhost:8000',
+    url: process.env.ML_SERVICE_URL || 'http://localhost:8003/api',
   },
   jwt: {
     secret: process.env.JWT_SECRET,

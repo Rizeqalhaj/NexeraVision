@@ -7,6 +7,18 @@ import FormData from 'form-data';
 export interface DetectionResult {
   violence_probability: number;
   confidence: string;
+  prediction: string;
+  per_class_scores: {
+    non_violence: number;
+    violence: number;
+  };
+  video_metadata?: {
+    filename: string;
+    duration_seconds: number;
+    fps: number;
+    resolution: string;
+    total_frames: number;
+  };
   peak_timestamp?: string;
   frame_analysis?: any[];
 }

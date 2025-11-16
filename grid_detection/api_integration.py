@@ -18,7 +18,7 @@ app = FastAPI(title="Grid Detection API", version="1.0.0")
 # CORS middleware for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:8001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -53,15 +53,33 @@ async def detect_grid(screenshot: UploadFile = File(...)) -> JSONResponse:
         # Run detection
         result = detector.detect(image)
 
+        # Calculate actual camera grid dimensions from number of detected regions
+        num_cameras = len(result['regions'])
+        # Try to infer grid dimensions from number of cameras
+        # Common layouts: 1, 2x2=4, 3x3=9, 4x4=16, 2x3=6, 3x4=12
+        if num_cameras == 1:
+            grid_rows, grid_cols = 1, 1
+        elif num_cameras == 4:
+            grid_rows, grid_cols = 2, 2
+        elif num_cameras == 6:
+            grid_rows, grid_cols = 2, 3
+        elif num_cameras == 9:
+            grid_rows, grid_cols = 3, 3
+        elif num_cameras == 12:
+            grid_rows, grid_cols = 3, 4
+        elif num_cameras == 16:
+            grid_rows, grid_cols = 4, 4
+        else:
+            # Use the detected grid layout (number of lines - 1 = number of cells)
+            grid_rows = result['grid_layout'][0]
+            grid_cols = result['grid_layout'][1]
+
         return JSONResponse(content={
-            "success": result['success'],
+            "success": bool(result['success']),
             "regions": result['regions'],
-            "gridLayout": {
-                "rows": result['grid_layout'][0],
-                "cols": result['grid_layout'][1]
-            },
-            "confidence": result['confidence'],
-            "requiresManual": result['requires_manual'],
+            "grid_layout": [grid_rows, grid_cols],  # Return actual camera grid dimensions
+            "confidence": float(result['confidence']),
+            "requires_manual": bool(result['requires_manual']),
             "message": get_message(result)
         })
 
@@ -145,4 +163,4 @@ def get_message(result: Dict) -> str:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8004)

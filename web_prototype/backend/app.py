@@ -37,7 +37,7 @@ cv2.setLogLevel(0)
 # ============================================================================
 
 CONFIG = {
-    'model_path': '/app/models/ultimate_best_model.h5',
+    'model_path': '/home/admin/Desktop/NexaraVision/ml_service/models/best_model.h5',
     'num_frames': 20,
     'frame_size': (224, 224),
     'max_video_size_mb': 100,
@@ -544,6 +544,135 @@ async def health_check():
         "modes": ["upload", "live"],
         "timestamp": datetime.now().isoformat()
     }
+
+@app.post("/upload")
+async def upload_video(video: UploadFile = File(...)):
+    """
+    POST endpoint for video upload and analysis
+    Returns: { success: boolean, data: { violenceProbability, confidence }, error?: string }
+    """
+    temp_dir = None
+    try:
+        # Validate file extension
+        file_ext = Path(video.filename).suffix.lower()
+        if file_ext not in CONFIG['allowed_extensions']:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "success": False,
+                    "error": f"Invalid file type. Allowed: {', '.join(CONFIG['allowed_extensions'])}"
+                }
+            )
+
+        # Create temp directory and save file
+        temp_dir = Path(tempfile.mkdtemp())
+        temp_video_path = temp_dir / video.filename
+
+        # Read and save uploaded file
+        video_bytes = await video.read()
+        file_size_mb = len(video_bytes) / (1024 * 1024)
+
+        if file_size_mb > CONFIG['max_video_size_mb']:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "success": False,
+                    "error": f"File too large. Maximum size: {CONFIG['max_video_size_mb']}MB"
+                }
+            )
+
+        temp_video_path.write_bytes(video_bytes)
+
+        # Extract frames (synchronous version)
+        cap = cv2.VideoCapture(str(temp_video_path))
+        if not cap.isOpened():
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "error": "Failed to open video file"}
+            )
+
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        num_frames = CONFIG['num_frames']
+
+        # Calculate frame indices
+        if total_frames <= num_frames:
+            indices = list(range(total_frames))
+            while len(indices) < num_frames:
+                indices.append(total_frames - 1 if total_frames > 0 else 0)
+        else:
+            step = (total_frames - 1) / (num_frames - 1)
+            indices = [int(round(i * step)) for i in range(num_frames)]
+
+        # Extract frames
+        frames = []
+        for target_index in indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, target_index)
+            success, frame = cap.read()
+            if success:
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                resized_frame = cv2.resize(rgb_frame, CONFIG['frame_size'])
+                frames.append(resized_frame)
+            else:
+                if frames:
+                    frames.append(frames[-1])
+                else:
+                    frames.append(np.zeros(CONFIG['frame_size'] + (3,), dtype=np.uint8))
+
+        cap.release()
+
+        # Pad frames if needed
+        while len(frames) < num_frames:
+            frames.append(frames[-1] if frames else np.zeros(CONFIG['frame_size'] + (3,), dtype=np.uint8))
+        frames = frames[:num_frames]
+        frames_array = np.array(frames, dtype=np.float32)
+
+        # Extract VGG19 features
+        features = extract_features_from_frames(frames_array)
+
+        # Run prediction
+        prediction = MODEL.predict(features.reshape(1, num_frames, 4096), verbose=0)[0]
+
+        # Model outputs: [non_violence, violence]
+        non_violence_prob = float(prediction[0])
+        violence_prob = float(prediction[1])
+
+        # Determine confidence level
+        max_prob = max(non_violence_prob, violence_prob)
+        if max_prob >= 0.85:
+            confidence = "High"
+        elif max_prob >= 0.65:
+            confidence = "Medium"
+        else:
+            confidence = "Low"
+
+        # Return result
+        return {
+            "success": True,
+            "data": {
+                "violenceProbability": violence_prob,
+                "confidence": confidence,
+                "timestamp": datetime.now().isoformat()
+            }
+        }
+
+    except Exception as e:
+        print(f"❌ Upload error: {e}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error": f"Processing failed: {str(e)}"
+            }
+        )
+    finally:
+        # Cleanup temp directory
+        if temp_dir and temp_dir.exists():
+            try:
+                shutil.rmtree(temp_dir)
+            except:
+                pass
 
 @app.websocket("/ws/analyze")
 async def websocket_analyze(websocket: WebSocket):

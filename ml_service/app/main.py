@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import detect, detect_live, websocket
+from app.api import detect, detect_live, websocket, detect_stream
 from app.core.config import settings
 from app.core.gpu import configure_gpu, get_device_info
 
@@ -43,6 +43,10 @@ async def lifespan(app: FastAPI):
     detect.initialize_detector()
     detect_live.detector = detect.detector  # Share model instance with HTTP endpoint
     websocket.detector = detect.detector  # Share model instance with WebSocket endpoint
+
+    # Initialize optimized TFLite detector for fast inference
+    logger.info("Loading optimized TFLite detector...")
+    detect_stream.initialize_optimized_detector()
     logger.info("Model loaded and ready")
 
     # Log device info
@@ -76,6 +80,7 @@ app.add_middleware(
 app.include_router(detect.router, prefix="/api", tags=["detection"])
 app.include_router(detect_live.router, prefix="/api", tags=["live-detection"])
 app.include_router(websocket.router, prefix="/api", tags=["websocket"])
+app.include_router(detect_stream.router, prefix="/api", tags=["fast-detection"])
 
 
 @app.get("/")
@@ -87,6 +92,8 @@ async def root():
         "status": "operational",
         "endpoints": {
             "file_upload": "/api/detect",
+            "fast_detection": "/api/detect_fast",
+            "streaming_detection": "/api/detect_stream",
             "live_stream": "/api/detect_live",
             "websocket_live": "/api/ws/live",
             "websocket_status": "/api/ws/status",

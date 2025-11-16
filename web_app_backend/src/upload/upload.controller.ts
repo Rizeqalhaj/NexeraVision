@@ -33,11 +33,18 @@ export class UploadController {
   async uploadVideo(@UploadedFile() file: Express.Multer.File) {
     const result = await this.uploadService.processVideo(file);
 
+    // Wrap response for frontend compatibility
     return {
-      violenceProbability: result.violence_probability,
-      confidence: result.confidence,
-      timestamp: result.peak_timestamp,
-      frameAnalysis: result.frame_analysis,
+      success: true,
+      data: {
+        violenceProbability: result.violence_probability,
+        confidence: result.confidence,
+        prediction: result.prediction,
+        perClassScores: result.per_class_scores,
+        videoMetadata: result.video_metadata,
+        timestamp: result.peak_timestamp || new Date().toISOString(),
+        frameAnalysis: result.frame_analysis || [],
+      },
     };
   }
 }
