@@ -57,9 +57,11 @@ export function LiveCamera() {
   const [prediction, setPrediction] = useState<string>('none');
   const [confidence, setConfidence] = useState<string>('');
   const [inferenceTime, setInferenceTime] = useState(0);
-  const [backend, setBackend] = useState<string>('');
+  const [backend, setBackend] = useState<string>('KERAS');
   const [alerts, setAlerts] = useState<AlertType[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [hasFirstAnalysis, setHasFirstAnalysis] = useState(false);
+  const [analysisCount, setAnalysisCount] = useState(0);
   const [sessionStats, setSessionStats] = useState<SessionStats>({
     totalAnalyses: 0,
     avgInferenceTime: 0,
@@ -131,7 +133,9 @@ export function LiveCamera() {
       setPrediction(result.prediction);
       setConfidence(result.confidence);
       setInferenceTime(result.inference_time_ms);
-      setBackend(result.backend);
+      setBackend(result.backend || 'KERAS');
+      setHasFirstAnalysis(true);
+      setAnalysisCount((prev) => prev + 1);
 
       // Update session statistics
       updateSessionStats(violencePct, result.inference_time_ms);
@@ -184,6 +188,12 @@ export function LiveCamera() {
       sessionStartRef.current = Date.now();
       analysisHistory.current = [];
       inferenceHistory.current = [];
+      setHasFirstAnalysis(false);
+      setAnalysisCount(0);
+      setViolenceProb(0);
+      setNonViolenceProb(100);
+      setPrediction('none');
+      setInferenceTime(0);
       setSessionStats({
         totalAnalyses: 0,
         avgInferenceTime: 0,
@@ -361,22 +371,28 @@ export function LiveCamera() {
 
             {/* Analysis Status Indicator */}
             {isDetecting && (
-              <div className="absolute top-4 right-4">
+              <div className="absolute top-4 right-4 flex flex-col gap-2">
                 <Badge
                   className={`${
                     isAnalyzing
                       ? 'bg-yellow-500/90 text-black'
-                      : 'bg-green-500/90 text-white'
+                      : 'bg-blue-500/90 text-white'
                   }`}
                 >
                   <Brain className="h-3 w-3 mr-1" />
-                  {isAnalyzing ? 'Analyzing...' : 'Ready'}
+                  {isAnalyzing ? 'Processing...' : `#${analysisCount} Active`}
                 </Badge>
+                {!hasFirstAnalysis && (
+                  <Badge className="bg-purple-500/90 text-white animate-pulse">
+                    <Activity className="h-3 w-3 mr-1" />
+                    Buffering frames...
+                  </Badge>
+                )}
               </div>
             )}
 
-            {/* Real-time Analysis Overlay */}
-            {isDetecting && violenceProb > 0 && (
+            {/* Real-time Analysis Overlay - Always visible once first analysis done */}
+            {isDetecting && hasFirstAnalysis && (
               <div className="absolute bottom-4 left-4 right-4">
                 <Card className="bg-black/80 backdrop-blur border-gray-700">
                   <CardContent className="p-4 space-y-3">
