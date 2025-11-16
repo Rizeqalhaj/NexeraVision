@@ -73,7 +73,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 ### Test Health Endpoint
 
 ```bash
-curl http://localhost:8000/api/health
+curl http://localhost:8003/api/health
 ```
 
 Expected response:
@@ -89,7 +89,7 @@ Expected response:
 
 ```bash
 # Upload a video file
-curl -X POST "http://localhost:8000/api/detect" \
+curl -X POST "http://localhost:8003/api/detect" \
   -F "video=@/path/to/test_video.mp4"
 ```
 
@@ -117,7 +117,7 @@ Expected response:
 
 ```bash
 # Send 20 base64 encoded frames
-curl -X POST "http://localhost:8000/api/detect_live" \
+curl -X POST "http://localhost:8003/api/detect_live" \
   -H "Content-Type: application/json" \
   -d '{
     "frames": ["base64_frame_1", ..., "base64_frame_20"]
@@ -128,8 +128,8 @@ curl -X POST "http://localhost:8000/api/detect_live" \
 
 Open your browser and go to:
 
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+- **Swagger UI**: http://localhost:8003/docs
+- **ReDoc**: http://localhost:8003/redoc
 
 ## Common Issues
 
@@ -188,5 +188,5 @@ uvicorn app.main:app --host 0.0.0.0 --port 8001
 
 For issues or questions:
 - Check logs: `docker-compose logs ml-service`
-- Review API docs: http://localhost:8000/docs
+- Review API docs: http://localhost:8003/docs
 - Test endpoints: Use Swagger UI for interactive testing

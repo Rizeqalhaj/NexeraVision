@@ -391,6 +391,31 @@ export function LiveCamera() {
               </div>
             )}
 
+            {/* Large Status Indicator - GREEN/RED */}
+            {isDetecting && hasFirstAnalysis && (
+              <div className="absolute top-4 left-4">
+                <div
+                  className={`px-4 py-2 rounded-lg font-bold text-lg shadow-lg ${
+                    violenceProb > 50
+                      ? 'bg-red-600 text-white animate-pulse border-2 border-red-400'
+                      : 'bg-green-600 text-white border-2 border-green-400'
+                  }`}
+                >
+                  {violenceProb > 50 ? (
+                    <span className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5" />
+                      VIOLENCE DETECTED
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <Shield className="h-5 w-5" />
+                      SAFE - NO VIOLENCE
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Real-time Analysis Overlay - Always visible once first analysis done */}
             {isDetecting && hasFirstAnalysis && (
               <div className="absolute bottom-4 left-4 right-4">

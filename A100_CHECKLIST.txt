@@ -1,0 +1,168 @@
+═══════════════════════════════════════════════════════════════
+            A100 INSTALLATION CHECKLIST
+                NexaraVision Project
+═══════════════════════════════════════════════════════════════
+
+PRE-INSTALLATION
+───────────────────────────────────────────────────────────────
+□ Python 3.8+ installed (check: python3 --version)
+□ NVIDIA drivers installed (check: nvidia-smi)
+□ A100 GPU detected (nvidia-smi shows: A100 SXM4 80GB)
+□ 10GB+ free disk space (check: df -h)
+□ Internet connection available
+
+INSTALLATION
+───────────────────────────────────────────────────────────────
+□ Navigate to project directory:
+  cd /home/admin/Desktop/NexaraVision
+
+□ Run installation script:
+  bash COMPLETE_A100_INSTALL.sh
+
+□ Wait for completion (5-15 minutes)
+
+□ Review installation summary
+
+VERIFICATION
+───────────────────────────────────────────────────────────────
+□ Run test script:
+  python3 /tmp/test_training_setup.py
+
+□ Verify all tests pass:
+  □ [1] TensorFlow + GPU: ✅
+  □ [2] ResNet50V2 Model: ✅
+  □ [3] BiGRU Layer: ✅
+  □ [4] OpenCV: ✅
+  □ [5] Data Pipeline: ✅
+  □ [6] Memory Estimation: ✅
+
+□ Check GPU detection:
+  nvidia-smi
+
+□ Verify TensorFlow sees GPU:
+  python3 -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+
+□ Check installation log:
+  cat /tmp/nexaravision_install_*.log
+
+POST-INSTALLATION
+───────────────────────────────────────────────────────────────
+□ Create/activate virtual environment (recommended):
+  python3 -m venv venv
+  source venv/bin/activate
+
+□ Prepare dataset (if not done):
+  python3 scripts/preprocess_videos.py --input dataset/ --output processed/
+
+□ Verify dataset:
+  find processed/ -name "*.npy" | wc -l
+
+□ Configure training settings:
+  Edit training_config.json
+
+□ Add GPU configuration to training script:
+  # Enable memory growth
+  gpus = tf.config.list_physical_devices('GPU')
+  for gpu in gpus:
+      tf.config.experimental.set_memory_growth(gpu, True)
+
+  # Enable mixed precision (2-3x speedup)
+  from tensorflow.keras import mixed_precision
+  mixed_precision.set_global_policy('mixed_float16')
+
+TRAINING SETUP
+───────────────────────────────────────────────────────────────
+□ Open 3 terminal windows
+
+□ Terminal 1 - GPU monitoring:
+  watch -n 1 nvidia-smi
+
+□ Terminal 2 - Training:
+  python3 scripts/train_model.py --batch-size 32 --epochs 50
+
+□ Terminal 3 - Logs:
+  tail -f logs/training.log
+
+MONITORING
+───────────────────────────────────────────────────────────────
+During training, verify:
+
+□ GPU utilization > 90% (in nvidia-smi)
+□ GPU memory usage 40-50GB with batch size 32
+□ No OOM errors in training logs
+□ Training progressing (loss decreasing)
+□ Validation accuracy improving
+
+If GPU utilization < 50%:
+  □ Enable mixed precision ✓
+  □ Enable XLA compilation ✓
+  □ Increase batch size to 48 ✓
+  □ Optimize data pipeline (cache, prefetch) ✓
+
+TROUBLESHOOTING
+───────────────────────────────────────────────────────────────
+If problems occur:
+
+□ GPU not detected:
+  nvidia-smi (verify driver)
+  Re-run: bash COMPLETE_A100_INSTALL.sh
+
+□ Out of memory:
+  Reduce batch size: --batch-size 16
+
+□ Import errors:
+  Verify venv: which python3
+  Reinstall: pip install --force-reinstall tensorflow
+
+□ Slow training:
+  Enable mixed precision + XLA
+  Increase batch size
+  Check GPU utilization
+
+OPTIMIZATION CHECKLIST
+───────────────────────────────────────────────────────────────
+□ Memory growth enabled
+□ Mixed precision enabled (2-3x speedup)
+□ XLA compilation enabled (+15-30%)
+□ Batch size optimized (start 32, increase to 48)
+□ Data pipeline cached and prefetched
+□ Checkpoints saving every epoch
+□ TensorBoard logging enabled
+
+PERFORMANCE TARGETS
+───────────────────────────────────────────────────────────────
+Expected with batch size 32 + mixed precision:
+
+□ GPU utilization: 90%+
+□ GPU memory: 25-30GB
+□ Training speed: ~400 samples/s
+□ Time per epoch: ~2.5 min (10K samples)
+□ Total time (50 epochs): ~2 hours
+
+SUCCESS CRITERIA
+───────────────────────────────────────────────────────────────
+Installation successful when:
+
+□ All verification tests pass ✓
+□ GPU detected and utilized ✓
+□ Training runs without errors ✓
+□ Model accuracy improving ✓
+□ GPU utilization > 90% ✓
+
+═══════════════════════════════════════════════════════════════
+                    READY TO TRAIN!
+═══════════════════════════════════════════════════════════════
+
+QUICK REFERENCE COMMANDS:
+
+Install:      bash COMPLETE_A100_INSTALL.sh
+Verify:       python3 /tmp/test_training_setup.py
+GPU status:   nvidia-smi
+Train:        python3 scripts/train_model.py --batch-size 32 --epochs 50
+Monitor:      watch -n 1 nvidia-smi
+
+═══════════════════════════════════════════════════════════════
+Date: 2025-11-15
+Version: 1.0
+GPU: NVIDIA A100 SXM4 80GB
+═══════════════════════════════════════════════════════════════

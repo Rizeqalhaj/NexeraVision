@@ -52,7 +52,7 @@ mkdir -p models
 cp ../downloaded_models/ultimate_best_model.h5 models/
 
 # Run service
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8003
 ```
 
 ### 2. Docker Deployment
@@ -85,7 +85,7 @@ POST /api/detect
 Content-Type: multipart/form-data
 
 # Example with curl
-curl -X POST "http://localhost:8000/api/detect" \
+curl -X POST "http://localhost:8003/api/detect" \
   -F "video=@path/to/video.mp4"
 
 # Response
@@ -191,8 +191,8 @@ BATCH_SIZE=32
 MAX_WORKERS=4
 
 # API
-PORT=8000
-MAX_UPLOAD_SIZE=524288000  # 500MB
+PORT=8003
+MAX_UPLOAD_SIZE=524288003  # 500MB
 ```
 
 ## Performance Benchmarks

@@ -1,0 +1,39 @@
+{
+  "paths": {
+    "datasets": "/workspace/datasets/tier1",
+    "models": "/workspace/models",
+    "logs": "/workspace/logs",
+    "processed": "/workspace/processed"
+  },
+  "model": {
+    "sequence_model": "Bidirectional-GRU",
+    "gru_units": 128,
+    "dense_layers": [256, 128, 64],
+    "dropout": [0.5, 0.5, 0.5]
+  },
+  "training": {
+    "frames_per_video": 20,
+    "batch_size": 8,
+    "learning_rate": 0.0001,
+    "optimizer": "adam",
+    "loss": "categorical_crossentropy",
+    "early_stopping_patience": 15
+  },
+  "data": {
+    "train_split": 0.7,
+    "val_split": 0.15,
+    "test_split": 0.15,
+    "augmentation": true
+  },
+  "hardware": {
+    "gpus": 2,
+    "gpu_model": "RTX 6000 Ada",
+    "vram_per_gpu": "48GB",
+    "total_vram": "96GB"
+  },
+  "dataset_info": {
+    "total_videos": 10738,
+    "violence_videos": 5369,
+    "non_violence_videos": 5369
+  }
+}

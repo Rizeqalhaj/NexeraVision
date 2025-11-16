@@ -1,1 +1,2 @@
 - update everything to progress.md before compact always
+- Use Proper Agents to fix the problem and explain each promts with steps
