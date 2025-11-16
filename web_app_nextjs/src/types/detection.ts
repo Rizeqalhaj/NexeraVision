@@ -6,6 +6,25 @@ export interface DetectionResult {
   timestamp?: string;
   peakTimestamp?: string;
   frameAnalysis?: FrameAnalysis[];
+  perClassScores?: {
+    nonViolence: number;
+    violence: number;
+  };
+  prediction?: string;
+  inferenceTimeMs?: number;
+  backend?: string;
+  videoMetadata?: {
+    filename?: string;
+    durationSeconds?: number;
+    fps?: number;
+    resolution?: string;
+    totalFrames?: number;
+  };
+  timing?: {
+    extractionMs?: number;
+    inferenceMs?: number;
+    totalMs?: number;
+  };
 }
 
 export interface FrameAnalysis {

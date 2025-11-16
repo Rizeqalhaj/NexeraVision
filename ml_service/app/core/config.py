@@ -16,17 +16,21 @@ def find_model_path() -> str:
     Returns:
         Path to model file
     """
-    # Possible model paths in priority order
+    # Possible model paths in priority order (.keras format preferred over .h5)
     search_paths = [
-        # Docker paths
+        # Docker paths - Keras 3 format first
+        "/app/models/initial_best_model.keras",
         "/app/models/ultimate_best_model.h5",
         "/app/models/best_model.h5",
-        # Local development paths
+        # Local development paths - Keras 3 format first
+        "ml_service/models/initial_best_model.keras",
         "ml_service/models/best_model.h5",
+        "models/initial_best_model.keras",
         "models/best_model.h5",
         "downloaded_models/ultimate_best_model.h5",
         "downloaded_models/best_model.h5",
         # Absolute local paths
+        "/home/admin/Desktop/NexaraVision/ml_service/models/initial_best_model.keras",
         "/home/admin/Desktop/NexaraVision/ml_service/models/best_model.h5",
         "/home/admin/Desktop/NexaraVision/downloaded_models/ultimate_best_model.h5",
     ]
@@ -72,7 +76,7 @@ class Settings(BaseSettings):
 
     # API
     HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    PORT: int = 8003  # NexaraVision ML service port
     MAX_UPLOAD_SIZE: int = 500 * 1024 * 1024  # 500MB
 
     # Redis (optional)

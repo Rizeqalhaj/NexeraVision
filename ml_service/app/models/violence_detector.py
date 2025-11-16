@@ -1,5 +1,6 @@
 """
 Violence detection model loader and inference engine.
+Supports both Keras 3 (.keras) and legacy Keras 2 (.h5) formats.
 """
 import logging
 from pathlib import Path
@@ -9,6 +10,32 @@ import numpy as np
 import tensorflow as tf
 
 logger = logging.getLogger(__name__)
+
+
+class AttentionLayer(tf.keras.layers.Layer):
+    """Custom attention layer for focusing on important frames."""
+
+    def __init__(self, **kwargs):
+        super(AttentionLayer, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.attention_dense = tf.keras.layers.Dense(1, use_bias=False, dtype=self.dtype_policy)
+        super(AttentionLayer, self).build(input_shape)
+
+    def call(self, inputs):
+        # Cast to input dtype to handle mixed precision
+        attention_scores = self.attention_dense(inputs)
+        attention_weights = tf.nn.softmax(tf.cast(attention_scores, inputs.dtype), axis=1)
+        context_vector = tf.reduce_sum(inputs * attention_weights, axis=1)
+        return context_vector
+
+    def compute_output_shape(self, input_shape):
+        return (input_shape[0], input_shape[2])
+
+    def compute_output_spec(self, input_spec):
+        """Keras 3.x output spec computation"""
+        output_shape = (input_spec.shape[0], input_spec.shape[2])
+        return tf.keras.KerasTensor(output_shape, dtype=input_spec.dtype)
 
 
 class ViolenceDetector:
@@ -47,11 +74,26 @@ class ViolenceDetector:
         """
         try:
             # Force CPU if GPU is not available
+            # Load model with custom layers support
             with tf.device('/CPU:0'):
-                model = tf.keras.models.load_model(
-                    str(self.model_path),
-                    compile=False  # Skip compilation for inference
-                )
+                # Determine if we're loading .keras (Keras 3) or .h5 (Keras 2)
+                is_keras3_format = str(self.model_path).endswith('.keras')
+
+                if is_keras3_format:
+                    # Keras 3 native format - no safe_mode needed
+                    model = tf.keras.models.load_model(
+                        str(self.model_path),
+                        custom_objects={'AttentionLayer': AttentionLayer},
+                        compile=False
+                    )
+                else:
+                    # Legacy Keras 2 .h5 format - needs safe_mode=False
+                    model = tf.keras.models.load_model(
+                        str(self.model_path),
+                        custom_objects={'AttentionLayer': AttentionLayer},
+                        compile=False,
+                        safe_mode=False
+                    )
 
             # Log model architecture summary
             try:
@@ -193,10 +235,14 @@ class ViolenceDetector:
         Returns:
             Dictionary with model information
         """
+        # Convert TensorShape to list for JSON serialization
+        input_shape = [int(x) if x is not None else None for x in self.model.input_shape]
+        output_shape = [int(x) if x is not None else None for x in self.model.output_shape]
+
         return {
             "model_path": str(self.model_path),
-            "input_shape": self.model.input_shape,
-            "output_shape": self.model.output_shape,
+            "input_shape": input_shape,
+            "output_shape": output_shape,
             "total_layers": len(self.model.layers),
-            "trainable_params": sum([np.prod(v.shape) for v in self.model.trainable_weights]),
+            "trainable_params": int(sum([np.prod(v.shape) for v in self.model.trainable_weights])),
         }
